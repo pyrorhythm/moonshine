@@ -1,4 +1,4 @@
-package config
+package packages
 
 // Package is a single entry in the packages map.
 type Package struct {

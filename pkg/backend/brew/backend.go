@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pyrorhythm/moonshine/internal/version"
 	"github.com/pyrorhythm/moonshine/pkg/backend"
 )
 
@@ -96,7 +95,7 @@ func (b *Backend) InstalledVersion(ctx context.Context, name string) (string, er
 	}
 	for _, e := range entries {
 		if e.Name == name {
-			return version.Normalize(e.Version), nil
+			return e.Version, nil
 		}
 	}
 	return "", nil

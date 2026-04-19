@@ -13,6 +13,8 @@ import (
 	"github.com/pyrorhythm/moonshine/pkg/backend"
 )
 
+var _ backend.Backend = (*Backend)(nil)
+
 // BackendConfig is the user-supplied configuration for a custom backend.
 type BackendConfig struct {
 	Name          string `yaml:"name"`
@@ -40,7 +42,7 @@ func (s *Backend) Available() bool {
 
 // ListInstalled runs the list command and parses "name version" lines.
 func (s *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage, error) {
-	out, err := s.run(ctx, s.config.List, backend.Package{})
+	out, err := s.plainRun(ctx, s.config.List)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +116,14 @@ func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) ([
 
 	tmpl, err := template.New(s.config.Name).Option("missingkey=error").Parse(toRun)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse cmd tmpl (%s): %w", toRun, err)
+		return nil, fmt.Errorf(
+			"backend %q: failed to parse cmd tmpl (%s): %w",
+			s.config.Name, toRun, err,
+		)
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, pkg); err != nil {
+	if err = tmpl.Execute(&buf, pkg); err != nil {
 		return nil, fmt.Errorf("failed to execute cmd tmpl: %w", err)
 	}
 
@@ -132,7 +137,7 @@ func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) ([
 	execCmd := exec.CommandContext(ctx, shell, "-c", script)
 	execCmd.Stdout = &buf
 	execCmd.Stderr = os.Stderr
-	if err := execCmd.Run(); err != nil {
+	if err = execCmd.Run(); err != nil {
 		return nil, fmt.Errorf("backend %q: %w", s.config.Name, err)
 	}
 	return buf.Bytes(), nil

@@ -7,15 +7,49 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/pyrorhythm/moonshine/internal/config/mode"
+	"github.com/pyrorhythm/moonshine/internal/hooks"
 )
 
+// Moonshine holds global moonshine settings.
+type Moonshine struct {
+	Mode     mode.OperatingMode   `yaml:"mode"`
+	LocalTap string               `yaml:"local_tap"`
+	Daemon   DaemonConfig         `yaml:"daemon"`
+	Hooks    hooks.Hooks          `yaml:"hooks"`
+	Shell    []ShellBackendConfig `yaml:"shell_backends"`
+}
+
+func (m *Moonshine) applyDefaults() {
+	if m.Mode == "" {
+		m.Mode = mode.Default
+	}
+	if m.LocalTap == "" {
+		m.LocalTap = "moonshine-local"
+	}
+	if m.Daemon.CheckInterval.Seconds() == 0 {
+		m.Daemon.CheckInterval = 6 * time.Hour
+	}
+}
+
+func (m *Moonshine) validate() error {
+	if !m.Mode.Valid() {
+		return fmt.Errorf(
+			"invalid mode %q: must be %q or %q",
+			m.Mode,
+			mode.Standalone,
+			mode.Companion,
+		)
+	}
+	return nil
+}
+
 // Load reads and parses a moonfile.yaml at path.
-func Load(path string) (*Manifest, error) {
+func Load(path string) (*Moonshine, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading moonfile: %w", err)
 	}
-	var m Manifest
+	var m Moonshine
 	if err := yaml.Unmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("parsing moonfile: %w", err)
 	}
@@ -27,7 +61,7 @@ func Load(path string) (*Manifest, error) {
 }
 
 // Save writes the manifest to path atomically.
-func Save(path string, m *Manifest) error {
+func Save(path string, m *Moonshine) error {
 	data, err := yaml.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("marshalling moonfile: %w", err)
@@ -45,20 +79,17 @@ func Save(path string, m *Manifest) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-// New returns a Manifest populated with sensible defaults.
-func New(opMode string) *Manifest {
-	m := &Manifest{
-		Moonshine: MoonshineConfig{
-			Mode:     mode.OperatingMode(opMode),
-			LocalTap: "moonshine-local",
-		},
+// New returns a Moonshine populated with sensible defaults.
+func New(opMode string) *Moonshine {
+	m := &Moonshine{
+		Mode:     mode.OperatingMode(opMode),
+		LocalTap: "moonshine-local",
 		Daemon: DaemonConfig{
 			Enabled:       false,
 			CheckInterval: 6 * time.Hour,
 			AutoApply:     false,
 			Notify:        true,
 		},
-		Packages: make(map[string][]Package),
 	}
 	return m
 }

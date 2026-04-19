@@ -1,8 +1,8 @@
 build:
-    go build -o build/moonshine .
+    goutil build -o build/moonshine .
 
 test:
-    go test ./...
+    goutil test ./...
 
 lint:
     golangci-lint run
