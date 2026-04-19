@@ -1,5 +1,5 @@
 build:
-    go build -o bin/moonshine .
+    go build -o build/moonshine .
 
 test:
     go test ./...
@@ -8,7 +8,7 @@ lint:
     golangci-lint run
 
 install: build
-    cp bin/moonshine /usr/local/bin/moonshine
+    cp build/moonshine /usr/local/bin/moonshine
     ln -sf /usr/local/bin/moonshine /usr/local/bin/moon
     ln -sf /usr/local/bin/moonshine /usr/local/bin/ms
 
