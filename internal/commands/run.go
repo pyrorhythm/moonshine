@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/urfave/cli/v2"
 )
@@ -15,6 +16,20 @@ const (
 	dryRunFlag  = "dry-run"
 	modeFlag    = "mode"
 )
+
+// defaultConfigPath returns $XDG_CONFIG_HOME/moonshine/moonconfig.yml,
+// falling back to ~/.config/moonshine/moonconfig.yml per the XDG spec.
+func defaultConfigPath() string {
+	xdg := os.Getenv("XDG_CONFIG_HOME")
+	if xdg == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "moonconfig.yml"
+		}
+		xdg = filepath.Join(home, ".config")
+	}
+	return filepath.Join(xdg, "moonshine", "moonconfig.yml")
+}
 
 // Run executes the moonshine CLI with the given args (typically os.Args).
 func Run(args []string) error {
@@ -30,7 +45,7 @@ func newApp() *cli.App {
 			&cli.StringFlag{
 				Name:    configFlag,
 				Aliases: []string{"c"},
-				Value:   "moonconfig.yml",
+				Value:   defaultConfigPath(),
 				Usage:   "path to moonconfig.yml",
 				EnvVars: []string{"MOONCONFIG"},
 			},

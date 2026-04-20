@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pyrorhythm/moonshine/internal/config"
 	"github.com/pyrorhythm/moonshine/internal/packages"
@@ -19,7 +20,7 @@ func snapshotCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "output",
 				Aliases: []string{"o"},
-				Value:   "moonconfig.yml",
+				Value:   defaultConfigPath(),
 				Usage:   "output moonconfig.yml path (moonpackages.yml written alongside)",
 			},
 			&cli.StringFlag{
@@ -59,6 +60,9 @@ func snapshotCommand() *cli.Command {
 				}
 			}
 
+			if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+				return fmt.Errorf("creating config directory: %w", err)
+			}
 			if _, err := os.Stat(output); err == nil {
 				ui.Warn(fmt.Sprintf("%s already exists; overwrite? (ctrl-c to abort)", output))
 			}

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pyrorhythm/moonshine/internal/config"
@@ -20,7 +21,7 @@ func initCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:    "output",
 				Aliases: []string{"o"},
-				Value:   "moonconfig.yml",
+				Value:   defaultConfigPath(),
 				Usage:   "output path for moonconfig.yml",
 			},
 		},
@@ -32,6 +33,9 @@ func initCommand() *cli.Command {
 					"%s already exists; delete it or use --output for a different path",
 					output,
 				)
+			}
+			if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+				return fmt.Errorf("creating config directory: %w", err)
 			}
 
 			ui.Banner()
