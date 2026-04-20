@@ -3,10 +3,10 @@ package commands
 import (
 	"fmt"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/packages"
-	"github.com/pyrorhythm/moonshine/internal/ui"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/packages"
+	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
 func removeCommand() *cli.Command {
@@ -17,7 +17,9 @@ func removeCommand() *cli.Command {
 		ArgsUsage: "[backend#]package",
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
-				return fmt.Errorf("package required — format: [backend#]name  e.g. brew#node, go#gopls")
+				return fmt.Errorf(
+					"package required — format: [backend#]name  e.g. brew#node, go#gopls",
+				)
 			}
 
 			ref, err := parsePackageRef(c.Args().First())
@@ -40,7 +42,11 @@ func removeCommand() *cli.Command {
 				updated = append(updated, p)
 			}
 			if !found {
-				return fmt.Errorf("package %q not found in moonpackages.yml under %s", ref.name, ref.backend)
+				return fmt.Errorf(
+					"package %q not found in moonpackages.yml under %s",
+					ref.name,
+					ref.backend,
+				)
 			}
 
 			ac.moonfile.Packages = packages.List(updated)

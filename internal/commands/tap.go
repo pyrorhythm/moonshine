@@ -3,9 +3,9 @@ package commands
 import (
 	"fmt"
 
-	"github.com/pyrorhythm/moonshine/internal/ui"
-	brewbackend "github.com/pyrorhythm/moonshine/pkg/backend/brew"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/ui"
+	brewbackend "pyrorhythm.dev/moonshine/pkg/backend/brew"
 )
 
 func tapCommand() *cli.Command {
@@ -49,7 +49,12 @@ func tapCommand() *cli.Command {
 						return err
 					}
 					if !exists {
-						ui.Warn(fmt.Sprintf("tap %q does not exist; run 'ms tap init'", ac.moonfile.LocalTap))
+						ui.Warn(
+							fmt.Sprintf(
+								"tap %q does not exist; run 'ms tap init'",
+								ac.moonfile.LocalTap,
+							),
+						)
 						return nil
 					}
 					ui.Success(fmt.Sprintf("tap %q is registered", ac.moonfile.LocalTap))

@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/internal/daemon"
-	"github.com/pyrorhythm/moonshine/internal/ui"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/daemon"
+	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
 func daemonCommand() *cli.Command {

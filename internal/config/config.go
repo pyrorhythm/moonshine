@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/goccy/go-yaml"
-	"github.com/pyrorhythm/moonshine/internal/config/mode"
-	"github.com/pyrorhythm/moonshine/internal/hooks"
+	"pyrorhythm.dev/moonshine/internal/config/mode"
+	"pyrorhythm.dev/moonshine/internal/hooks"
 )
 
 // Moonshine holds global moonshine settings.

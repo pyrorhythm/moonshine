@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
 )
 
 func TestLoadMissing(t *testing.T) {
@@ -21,7 +21,12 @@ func TestLoadMissing(t *testing.T) {
 
 func TestUpsertAndContains(t *testing.T) {
 	lf := lockfile.New("standalone")
-	pkg := lockfile.LockedPackage{Name: "git", Version: "2.41.0", Source: "homebrew/core", InstalledAt: time.Now()}
+	pkg := lockfile.LockedPackage{
+		Name:        "git",
+		Version:     "2.41.0",
+		Source:      "homebrew/core",
+		InstalledAt: time.Now(),
+	}
 	lf.Upsert("brew", pkg)
 
 	if !lf.Contains("brew", "git") {
@@ -60,7 +65,10 @@ func TestRemove(t *testing.T) {
 func TestSaveRoundtrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "moonfile.lock")
 	lf := lockfile.New("companion")
-	lf.Upsert("brew", lockfile.LockedPackage{Name: "bat", Version: "0.24.0", Source: "homebrew/core"})
+	lf.Upsert(
+		"brew",
+		lockfile.LockedPackage{Name: "bat", Version: "0.24.0", Source: "homebrew/core"},
+	)
 
 	if err := lockfile.Save(path, lf); err != nil {
 		t.Fatalf("save: %v", err)
@@ -86,7 +94,7 @@ func TestSaveAtomic(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "moonfile.lock")
 	// Write initial content
-	if err := os.WriteFile(path, []byte("initial"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("initial"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	lf := lockfile.New("standalone")

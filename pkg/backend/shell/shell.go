@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 var _ backend.Backend = (*Backend)(nil)
@@ -97,7 +97,12 @@ func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) ([
 
 	tmpl, err := template.New(s.config.Name).Option("missingkey=error").Parse(toRun)
 	if err != nil {
-		return nil, fmt.Errorf("backend %q: failed to parse cmd tmpl (%s): %w", s.config.Name, toRun, err)
+		return nil, fmt.Errorf(
+			"backend %q: failed to parse cmd tmpl (%s): %w",
+			s.config.Name,
+			toRun,
+			err,
+		)
 	}
 
 	data := templateData{

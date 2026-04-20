@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/config/mode"
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
-	"github.com/pyrorhythm/moonshine/internal/registry"
-	brewbackend "github.com/pyrorhythm/moonshine/pkg/backend/brew"
-	"github.com/pyrorhythm/moonshine/pkg/backend/cargo"
-	"github.com/pyrorhythm/moonshine/pkg/backend/goutil"
-	"github.com/pyrorhythm/moonshine/pkg/backend/npm"
-	"github.com/pyrorhythm/moonshine/pkg/backend/shell"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/config/mode"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/registry"
+	brewbackend "pyrorhythm.dev/moonshine/pkg/backend/brew"
+	"pyrorhythm.dev/moonshine/pkg/backend/cargo"
+	"pyrorhythm.dev/moonshine/pkg/backend/goutil"
+	"pyrorhythm.dev/moonshine/pkg/backend/npm"
+	"pyrorhythm.dev/moonshine/pkg/backend/shell"
 )
 
 type appContext struct {

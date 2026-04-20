@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/config/mode"
-	"github.com/pyrorhythm/moonshine/internal/ui"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/config/mode"
+	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
 func initCommand() *cli.Command {
@@ -59,7 +59,9 @@ func initCommand() *cli.Command {
 				return fmt.Errorf("writing moonconfig: %w", err)
 			}
 			ui.Success(fmt.Sprintf("moonconfig.yml written to %s", output))
-			ui.Info("next: add packages with 'ms add brew#<package>' or edit moonpackages.yml directly")
+			ui.Info(
+				"next: add packages with 'ms add brew#<package>' or edit moonpackages.yml directly",
+			)
 			return nil
 		},
 	}

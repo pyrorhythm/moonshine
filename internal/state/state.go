@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pyrorhythm/moonshine/internal/registry"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/internal/registry"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 // PackageMap is a set of installed packages keyed by package name.

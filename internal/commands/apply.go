@@ -1,8 +1,8 @@
 package commands
 
 import (
-	"github.com/pyrorhythm/moonshine/internal/ui"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
 func applyCommand() *cli.Command {

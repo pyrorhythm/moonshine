@@ -10,11 +10,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
-	"github.com/pyrorhythm/moonshine/internal/reconciler"
-	"github.com/pyrorhythm/moonshine/internal/registry"
-	"github.com/pyrorhythm/moonshine/internal/state"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/reconciler"
+	"pyrorhythm.dev/moonshine/internal/registry"
+	"pyrorhythm.dev/moonshine/internal/state"
 )
 
 // StatusReport is broadcast to connected clients and written to the status file.
@@ -62,7 +62,7 @@ func New(
 
 // Run starts the daemon loop. Blocks until ctx is cancelled.
 func (d *Daemon) Run(ctx context.Context) error {
-	if err := os.MkdirAll(Dir(), 0755); err != nil {
+	if err := os.MkdirAll(Dir(), 0o755); err != nil {
 		return err
 	}
 
@@ -143,7 +143,7 @@ func (d *Daemon) check(ctx context.Context) {
 
 func (d *Daemon) writeStatus(r StatusReport) {
 	data, _ := json.MarshalIndent(r, "", "  ")
-	_ = os.WriteFile(d.statusPath, data, 0644)
+	_ = os.WriteFile(d.statusPath, data, 0o644)
 }
 
 // ReadStatus reads the last status report written by the daemon.

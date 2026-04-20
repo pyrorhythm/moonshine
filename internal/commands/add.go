@@ -3,10 +3,10 @@ package commands
 import (
 	"fmt"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/ui"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/ui"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 func addCommand() *cli.Command {
@@ -16,7 +16,9 @@ func addCommand() *cli.Command {
 		ArgsUsage: "[backend#]package[@version]",
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
-				return fmt.Errorf("package required — format: [backend#]name[@version]  e.g. brew#node@22, go#golang.org/x/tools/gopls")
+				return fmt.Errorf(
+					"package required — format: [backend#]name[@version]  e.g. brew#node@22, go#golang.org/x/tools/gopls",
+				)
 			}
 
 			ref, err := parsePackageRef(c.Args().First())
@@ -31,7 +33,11 @@ func addCommand() *cli.Command {
 
 			for _, p := range ac.moonfile.Packages {
 				if p.PackageManager == ref.backend && p.BinaryName() == ref.name {
-					return fmt.Errorf("package %q already in moonpackages under %s", ref.name, ref.backend)
+					return fmt.Errorf(
+						"package %q already in moonpackages under %s",
+						ref.name,
+						ref.backend,
+					)
 				}
 			}
 
@@ -50,7 +56,13 @@ func addCommand() *cli.Command {
 			}
 
 			// Not found in preferred backend — search all others.
-			ui.Warn(fmt.Sprintf("%q not found in %s, searching other backends...", ref.name, ref.backend))
+			ui.Warn(
+				fmt.Sprintf(
+					"%q not found in %s, searching other backends...",
+					ref.name,
+					ref.backend,
+				),
+			)
 
 			var crossResults []backend.SearchResult
 			for _, other := range ac.registry.All() {

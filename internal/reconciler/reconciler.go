@@ -6,11 +6,11 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/hooks"
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
-	"github.com/pyrorhythm/moonshine/internal/registry"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/hooks"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/registry"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 // ApplyOptions configures the Apply call.
@@ -30,7 +30,11 @@ func Apply(
 	lf *lockfile.LockFile,
 	opts ApplyOptions,
 ) error {
-	if err := hooks.Run(ctx, opts.Hooks.PreApply, hooks.Env{Action: "apply", Mode: opts.Mode}); err != nil {
+	if err := hooks.Run(
+		ctx,
+		opts.Hooks.PreApply,
+		hooks.Env{Action: "apply", Mode: opts.Mode},
+	); err != nil {
 		return fmt.Errorf("pre_apply hook: %w", err)
 	}
 
@@ -66,7 +70,12 @@ func Apply(
 			}
 			if !opts.DryRun {
 				if err := b.Install(ctx, action.Package); err != nil {
-					return fmt.Errorf("installing %s/%s: %w", action.BackendName, action.Package.Name(), err)
+					return fmt.Errorf(
+						"installing %s/%s: %w",
+						action.BackendName,
+						action.Package.Name(),
+						err,
+					)
 				}
 				lf.Upsert(action.BackendName, lockfile.LockedPackage{
 					Name:        action.Package.Name(),
@@ -90,7 +99,12 @@ func Apply(
 					Meta:           map[string]string{"name": action.Current.Name},
 				}
 				if err := b.Uninstall(ctx, pkg); err != nil {
-					return fmt.Errorf("uninstalling %s/%s: %w", action.BackendName, action.Current.Name, err)
+					return fmt.Errorf(
+						"uninstalling %s/%s: %w",
+						action.BackendName,
+						action.Current.Name,
+						err,
+					)
 				}
 				lf.Remove(action.BackendName, action.Current.Name)
 			}
@@ -102,7 +116,11 @@ func Apply(
 
 	_ = mf
 
-	if err := hooks.Run(ctx, opts.Hooks.PostApply, hooks.Env{Action: "apply", Mode: opts.Mode}); err != nil {
+	if err := hooks.Run(
+		ctx,
+		opts.Hooks.PostApply,
+		hooks.Env{Action: "apply", Mode: opts.Mode},
+	); err != nil {
 		return fmt.Errorf("post_apply hook: %w", err)
 	}
 	return nil

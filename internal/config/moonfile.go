@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/pyrorhythm/moonshine/internal/packages"
+	"pyrorhythm.dev/moonshine/internal/packages"
 )
 
 // Moonfile is the combined view of moonconfig.yml + moonpackages.

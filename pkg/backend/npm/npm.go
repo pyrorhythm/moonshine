@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pyrorhythm/moonshine/pkg/backend"
-	"github.com/pyrorhythm/moonshine/pkg/runenv"
+	"pyrorhythm.dev/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/pkg/runenv"
 )
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
@@ -268,7 +268,12 @@ func parseNpmSearch(data []byte) []backend.SearchResult {
 	return results
 }
 
-func (b *Backend) runTool(ctx context.Context, toolPath string, args []string, capture bool) ([]byte, error) {
+func (b *Backend) runTool(
+	ctx context.Context,
+	toolPath string,
+	args []string,
+	capture bool,
+) ([]byte, error) {
 	if toolPath == "" {
 		return nil, fmt.Errorf("tool not available")
 	}

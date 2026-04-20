@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 // PickSearchResult presents an interactive list of SearchResults and returns

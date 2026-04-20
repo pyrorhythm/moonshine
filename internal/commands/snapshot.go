@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
-	"github.com/pyrorhythm/moonshine/internal/packages"
-	"github.com/pyrorhythm/moonshine/internal/state"
-	"github.com/pyrorhythm/moonshine/internal/ui"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/packages"
+	"pyrorhythm.dev/moonshine/internal/state"
+	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
 func snapshotCommand() *cli.Command {

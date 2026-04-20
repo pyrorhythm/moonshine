@@ -6,13 +6,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pyrorhythm/moonshine/internal/reconciler"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/internal/reconciler"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 // Banner prints the moonshine brand header.
 func Banner() {
-	fmt.Println(styleBrand.Render("  moonshine ") + styleMuted.Render("declarative package manager"))
+	fmt.Println(
+		styleBrand.Render("  moonshine ") + styleMuted.Render("declarative package manager"),
+	)
 	fmt.Println()
 }
 
@@ -52,7 +54,14 @@ func PrintDiff(w io.Writer, result reconciler.DiffResult) {
 			name := styleName.Render(a.Package.Name())
 			from := styleVersion.Render(a.Current.Version)
 			to := styleVersion.Render(a.Package.Get("version"))
-			line = fmt.Sprintf("  %s %s %s → %s%s", styleChange.Render("~"), name, from, to, backendLabel)
+			line = fmt.Sprintf(
+				"  %s %s %s → %s%s",
+				styleChange.Render("~"),
+				name,
+				from,
+				to,
+				backendLabel,
+			)
 		case reconciler.ActionUninstall:
 			name := styleName.Render(a.Current.Name)
 			line = fmt.Sprintf("  %s %s%s", styleRemove.Render("-"), name, backendLabel)
@@ -72,7 +81,11 @@ type SearchResultGroup struct {
 func PrintSearchResults(groups []SearchResultGroup, query string) {
 	for _, g := range groups {
 		if g.Err != nil {
-			fmt.Printf("  %s %s\n", styleWarn.Render("["+g.Name+"]"), styleMuted.Render("search failed: "+g.Err.Error()))
+			fmt.Printf(
+				"  %s %s\n",
+				styleWarn.Render("["+g.Name+"]"),
+				styleMuted.Render("search failed: "+g.Err.Error()),
+			)
 			continue
 		}
 		if len(g.Results) == 0 {

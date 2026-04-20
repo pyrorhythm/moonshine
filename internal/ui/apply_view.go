@@ -7,14 +7,14 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/pyrorhythm/moonshine/internal/reconciler"
+	"pyrorhythm.dev/moonshine/internal/reconciler"
 )
 
 // ProgressMsg is sent when a package action completes.
 type ProgressMsg struct {
-	Action  reconciler.PackageAction
-	Err     error
-	Done    bool // true = all done
+	Action reconciler.PackageAction
+	Err    error
+	Done   bool // true = all done
 }
 
 type applyRow struct {

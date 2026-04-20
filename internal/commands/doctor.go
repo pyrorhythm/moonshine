@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pyrorhythm/moonshine/internal/reconciler"
-	"github.com/pyrorhythm/moonshine/internal/state"
-	"github.com/pyrorhythm/moonshine/internal/ui"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/reconciler"
+	"pyrorhythm.dev/moonshine/internal/state"
+	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
 func doctorCommand() *cli.Command {

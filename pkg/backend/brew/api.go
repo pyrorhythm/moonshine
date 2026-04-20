@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 const apiBase = "https://formulae.brew.sh/api"

@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/pyrorhythm/moonshine/internal/commands"
+	"pyrorhythm.dev/moonshine/internal/commands"
 )
 
 func main() {

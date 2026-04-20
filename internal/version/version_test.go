@@ -3,7 +3,7 @@ package version_test
 import (
 	"testing"
 
-	"github.com/pyrorhythm/moonshine/internal/version"
+	"pyrorhythm.dev/moonshine/internal/version"
 )
 
 func TestNormalize(t *testing.T) {

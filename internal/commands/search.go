@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/pyrorhythm/moonshine/internal/ui"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/ui"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 func searchCommand() *cli.Command {
@@ -41,7 +41,10 @@ func searchCommand() *cli.Command {
 					defer wg.Done()
 					results, err := s.Search(c.Context, query)
 					mu.Lock()
-					groups = append(groups, ui.SearchResultGroup{Name: name, Results: results, Err: err})
+					groups = append(
+						groups,
+						ui.SearchResultGroup{Name: name, Results: results, Err: err},
+					)
 					mu.Unlock()
 				}(b.Name(), s)
 			}

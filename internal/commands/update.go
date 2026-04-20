@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
-	"github.com/pyrorhythm/moonshine/internal/state"
-	"github.com/pyrorhythm/moonshine/internal/ui"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
 	"github.com/urfave/cli/v2"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/state"
+	"pyrorhythm.dev/moonshine/internal/ui"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 func updateCommand() *cli.Command {
@@ -72,7 +72,9 @@ func doUpdate(
 		}
 		installed, found := ss.Get(backendName, binaryName)
 		if !found {
-			ui.Warn(fmt.Sprintf("%s/%s not installed; run 'ms apply' first", backendName, binaryName))
+			ui.Warn(
+				fmt.Sprintf("%s/%s not installed; run 'ms apply' first", backendName, binaryName),
+			)
 			continue
 		}
 		ui.Info(fmt.Sprintf("upgrading %s/%s…", backendName, binaryName))

@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/pyrorhythm/moonshine/pkg/backend"
-	"github.com/pyrorhythm/moonshine/pkg/runenv"
+	"pyrorhythm.dev/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/pkg/runenv"
 )
 
 var _ backend.Backend = (*Backend)(nil)

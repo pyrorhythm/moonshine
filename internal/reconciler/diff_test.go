@@ -3,13 +3,13 @@ package reconciler_test
 import (
 	"testing"
 
-	"github.com/pyrorhythm/moonshine/internal/config"
-	"github.com/pyrorhythm/moonshine/internal/config/mode"
-	"github.com/pyrorhythm/moonshine/internal/lockfile"
-	"github.com/pyrorhythm/moonshine/internal/packages"
-	"github.com/pyrorhythm/moonshine/internal/reconciler"
-	"github.com/pyrorhythm/moonshine/internal/state"
-	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/internal/config"
+	"pyrorhythm.dev/moonshine/internal/config/mode"
+	"pyrorhythm.dev/moonshine/internal/lockfile"
+	"pyrorhythm.dev/moonshine/internal/packages"
+	"pyrorhythm.dev/moonshine/internal/reconciler"
+	"pyrorhythm.dev/moonshine/internal/state"
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 func brewPkg(name string, extra ...string) packages.Package {

@@ -1,4 +1,4 @@
-module github.com/pyrorhythm/moonshine
+module pyrorhythm.dev/moonshine
 
 go 1.26
 
