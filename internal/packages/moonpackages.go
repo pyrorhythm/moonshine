@@ -3,6 +3,7 @@ package packages
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -238,15 +239,30 @@ func SaveMoonpackages(path string, list List) error {
 	for _, pkg := range list {
 		switch pkg.PackageManager {
 		case "brew":
+			name := pkg.Get("name")
+			brewVer := pkg.Get("brew_version")
+			// Names sourced from `brew list` may include the variant suffix (e.g. "openssl@3").
+			// Split into name + brew_version when not already explicit.
+			if brewVer == "" {
+				if idx := strings.LastIndexByte(name, '@'); idx >= 0 {
+					brewVer = name[idx+1:]
+					name = name[:idx]
+				}
+			}
 			raw.Brew = append(raw.Brew, brewPkgYAML{
-				Name:        pkg.Get("name"),
+				Name:        name,
 				Version:     pkg.Get("version"),
-				BrewVersion: pkg.Get("brew_version"),
+				BrewVersion: brewVer,
 				Tap:         pkg.Get("tap"),
 			})
 		case "go":
+			link := pkg.Get("link")
+			if link == "" {
+				// Snapshot only knows the binary name; skip until the user fills in the module link.
+				continue
+			}
 			raw.Go = append(raw.Go, goPkgYAML{
-				Link:    pkg.Get("link"),
+				Link:    link,
 				Version: pkg.Get("version"),
 			})
 		case "cargo":
