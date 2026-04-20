@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -16,7 +16,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// appContext holds loaded config, lockfile, and backend registry for a command.
 type appContext struct {
 	moonfile   *config.Moonfile
 	lock       *lockfile.LockFile
@@ -27,7 +26,6 @@ type appContext struct {
 	dryRun     bool
 }
 
-// loadContext loads the moonfile + lockfile and registers all backends.
 func loadContext(c *cli.Context) (*appContext, error) {
 	configPath := c.String(configFlag)
 	mf, err := config.LoadMoonfile(configPath)
@@ -53,13 +51,10 @@ func loadContext(c *cli.Context) (*appContext, error) {
 	if err == nil {
 		reg.Register(brewB)
 	}
-
 	cargoB, _ := cargo.New()
 	reg.Register(cargoB)
-
 	goB, _ := goutil.New()
 	reg.Register(goB)
-
 	npmB, _ := npm.New()
 	reg.Register(npmB)
 
@@ -85,7 +80,6 @@ func loadContext(c *cli.Context) (*appContext, error) {
 	}, nil
 }
 
-// buildDefaultRegistry creates a registry without loading a moonfile (for snapshot).
 func buildDefaultRegistry(verbose bool) (*registry.Registry, error) {
 	reg := registry.NewRegistry()
 	brewB, err := brewbackend.New("moonshine-local", verbose)

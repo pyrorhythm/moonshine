@@ -55,31 +55,39 @@ func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
 }
 
 func (b *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
-	return b.runner.Uninstall(ctx, pkg.Get("name"))
+	return b.runner.Uninstall(ctx, formulaBase(pkg))
 }
 
 func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
-	return b.runner.Upgrade(ctx, pkg.Get("name"))
+	return b.runner.Upgrade(ctx, formulaBase(pkg))
+}
+
+// formulaBase returns the base formula name, incorporating brew_version variant if set.
+// e.g. name=openssl brew_version=3 → "openssl@3"
+func formulaBase(pkg backend.Package) string {
+	name := pkg.Get("name")
+	if bv := pkg.Get("brew_version"); bv != "" {
+		return name + "@" + bv
+	}
+	return name
 }
 
 // resolveFormula returns the formula string to install.
-// If a tap is specified it is used directly; otherwise version pinning via brew extract is applied.
+// tap overrides auto-resolution; version triggers brew extract for pinning.
 func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (string, error) {
-	name := pkg.Get("name")
+	base := formulaBase(pkg)
 	version := pkg.Get("version")
 	tap := pkg.Get("tap")
 
-	if tap != "" && version == "" {
-		return tap + "/" + name, nil
+	if tap != "" {
+		return tap + "/" + base, nil
 	}
-	if !pkg.IsPinned() {
-		if tap != "" {
-			return tap + "/" + name, nil
-		}
-		return name, nil
+	if version == "" {
+		return base, nil
 	}
 
-	candidate := name + "@" + version
+	// Pinned version: use a versioned formula if it exists, else brew extract.
+	candidate := base + "@" + version
 	exists, err := b.runner.FormulaExists(ctx, candidate)
 	if err != nil {
 		return "", err
@@ -90,8 +98,8 @@ func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (stri
 	if err := b.runner.TapCreate(ctx, b.localTap); err != nil {
 		return "", fmt.Errorf("creating local tap %q: %w", b.localTap, err)
 	}
-	if err := b.runner.Extract(ctx, name, version, b.localTap); err != nil {
-		return "", fmt.Errorf("extracting %s@%s: %w", name, version, err)
+	if err := b.runner.Extract(ctx, base, version, b.localTap); err != nil {
+		return "", fmt.Errorf("extracting %s@%s: %w", base, version, err)
 	}
 	return b.localTap + "/" + candidate, nil
 }

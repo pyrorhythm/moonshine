@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -14,13 +14,13 @@ import (
 func snapshotCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "snapshot",
-		Usage: "capture current installed packages into moonpackages (companion bootstrap)",
+		Usage: "capture current installed packages into moonpackages.yml (companion bootstrap)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "output",
 				Aliases: []string{"o"},
 				Value:   "moonconfig.yml",
-				Usage:   "output moonconfig.yml path (moonpackages written alongside)",
+				Usage:   "output moonconfig.yml path (moonpackages.yml written alongside)",
 			},
 			&cli.StringFlag{
 				Name:    "backend",
@@ -66,7 +66,7 @@ func snapshotCommand() *cli.Command {
 			if err := config.SaveMoonfile(output, mf); err != nil {
 				return fmt.Errorf("writing moonfile: %w", err)
 			}
-			ui.Success(fmt.Sprintf("snapshot written to %s and moonpackages", output))
+			ui.Success(fmt.Sprintf("snapshot written to %s and moonpackages.yml", output))
 			return nil
 		},
 	}

@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"context"
@@ -16,17 +16,8 @@ func updateCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "update",
 		Usage:     "upgrade unpinned packages to latest",
-		ArgsUsage: "[package]",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "backend",
-				Aliases: []string{"b"},
-				Usage:   "limit to this backend",
-			},
-		},
+		ArgsUsage: "[[backend#]package]",
 		Action: func(c *cli.Context) error {
-			target := c.Args().First()
-			backendFilter := c.String("backend")
 			ac, err := loadContext(c)
 			if err != nil {
 				return err
@@ -35,7 +26,17 @@ func updateCommand() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("snapshot: %w", err)
 			}
-			return doUpdate(c.Context, ac, ss, target, backendFilter)
+
+			var targetBackend, targetName string
+			if arg := c.Args().First(); arg != "" {
+				ref, err := parsePackageRef(arg)
+				if err != nil {
+					return err
+				}
+				targetBackend, targetName = ref.backend, ref.name
+			}
+
+			return doUpdate(c.Context, ac, ss, targetBackend, targetName)
 		},
 	}
 }
@@ -44,26 +45,28 @@ func doUpdate(
 	ctx context.Context,
 	ac *appContext,
 	ss state.SystemState,
-	target, backendFilter string,
+	targetBackend, targetName string,
 ) error {
 	updated := 0
 	for _, dp := range ac.moonfile.Packages {
 		backendName := dp.PackageManager
-		if backendFilter != "" && backendName != backendFilter {
+		binaryName := dp.BinaryName()
+
+		if targetBackend != "" && backendName != targetBackend {
 			continue
 		}
+		if targetName != "" && binaryName != targetName {
+			continue
+		}
+
 		b, ok := ac.registry.Get(backendName)
 		if !ok || !b.Available() {
 			continue
 		}
-		binaryName := dp.BinaryName()
-		if target != "" && binaryName != target {
-			continue
-		}
 		if dp.Pinned() {
 			ui.Warn(fmt.Sprintf(
-				"%s/%s is pinned at %s; use 'ms add %s --version <new>' to change",
-				backendName, binaryName, dp.Version(), binaryName,
+				"%s/%s is pinned at %s; use 'ms add %s#%s@<new>' to change",
+				backendName, binaryName, dp.Version(), backendName, binaryName,
 			))
 			continue
 		}
@@ -89,7 +92,7 @@ func doUpdate(
 		updated++
 	}
 
-	if updated == 0 && target == "" {
+	if updated == 0 && targetName == "" {
 		ui.Success("All unpinned packages are up to date.")
 		return nil
 	}

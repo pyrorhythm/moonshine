@@ -1,5 +1,5 @@
 build:
-    go build -o bin/moonshine .
+    go build -o bin/moonshine ./cmd
 
 test:
     go test ./...

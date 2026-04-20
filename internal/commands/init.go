@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"bufio"
@@ -15,7 +15,7 @@ import (
 func initCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "init",
-		Usage: "interactively create moonconfig.yml and moonpackages",
+		Usage: "interactively create moonconfig.yml and moonpackages.yml",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "output",
@@ -55,7 +55,7 @@ func initCommand() *cli.Command {
 				return fmt.Errorf("writing moonconfig: %w", err)
 			}
 			ui.Success(fmt.Sprintf("moonconfig.yml written to %s", output))
-			ui.Info("next: add packages with 'ms add <package>' or edit moonpackages directly")
+			ui.Info("next: add packages with 'ms add brew#<package>' or edit moonpackages.yml directly")
 			return nil
 		},
 	}

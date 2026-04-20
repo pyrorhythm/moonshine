@@ -14,14 +14,17 @@ mode: standalone
 local_tap: moonshine-local
 `
 
-const validPackages = `-- package_manager=brew name=git version=2.41.0
--- package_manager=brew name=ripgrep
+const validPackagesYAML = `
+brew:
+  - name: git
+    version: "2.41.0"
+  - ripgrep
 `
 
 func TestLoadMoonfile_valid(t *testing.T) {
 	dir := t.TempDir()
 	configPath := writeTmpFile(t, dir, "moonconfig.yml", validConfigYAML)
-	writeTmpFile(t, dir, "moonpackages", validPackages)
+	writeTmpFile(t, dir, "moonpackages.yml", validPackagesYAML)
 
 	mf, err := config.LoadMoonfile(configPath)
 	if err != nil {
@@ -70,7 +73,7 @@ func TestLoadMoonfile_invalidMode(t *testing.T) {
 func TestSaveMoonfileRoundtrip(t *testing.T) {
 	dir := t.TempDir()
 	configPath := writeTmpFile(t, dir, "moonconfig.yml", validConfigYAML)
-	writeTmpFile(t, dir, "moonpackages", validPackages)
+	writeTmpFile(t, dir, "moonpackages.yml", validPackagesYAML)
 
 	mf, _ := config.LoadMoonfile(configPath)
 	if err := config.SaveMoonfile(configPath, mf); err != nil {

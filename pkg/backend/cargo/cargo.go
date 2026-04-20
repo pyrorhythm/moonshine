@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"github.com/pyrorhythm/moonshine/pkg/runenv"
 )
 
 var _ backend.Backend = (*Backend)(nil)
@@ -88,6 +89,7 @@ func (b *Backend) run(ctx context.Context, args []string, capture bool) ([]byte,
 	}
 	var buf bytes.Buffer
 	cmd := exec.CommandContext(ctx, b.cargoPath, args...)
+	cmd.Env = runenv.Get()
 	if capture {
 		cmd.Stdout = &buf
 	} else {

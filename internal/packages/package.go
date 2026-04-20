@@ -12,16 +12,20 @@ type Package struct {
 // Get returns a metadata value.
 func (p Package) Get(key string) string { return p.Meta[key] }
 
-// BinaryName returns the binary/formula name used to match against installed packages.
-// For go packages this is the last path segment of the install target.
+// BinaryName returns the identifier used to match against installed packages.
+// For brew packages with brew_version set, this is "name@brew_version" (e.g. openssl@3).
+// For go packages this is the last path segment of the install link.
 func (p Package) BinaryName() string {
 	switch p.PackageManager {
-	case "go":
-		target := p.Meta["module"]
-		if path := p.Meta["path"]; path != "" {
-			target = target + "/" + path
+	case "brew":
+		name := p.Meta["name"]
+		if bv := p.Meta["brew_version"]; bv != "" {
+			return name + "@" + bv
 		}
-		parts := strings.Split(target, "/")
+		return name
+	case "go":
+		link := p.Meta["link"]
+		parts := strings.Split(link, "/")
 		return parts[len(parts)-1]
 	default:
 		return p.Meta["name"]

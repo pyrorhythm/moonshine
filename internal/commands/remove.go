@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -14,21 +14,16 @@ func removeCommand() *cli.Command {
 		Name:      "remove",
 		Aliases:   []string{"rm"},
 		Usage:     "remove a package from moonpackages and uninstall",
-		ArgsUsage: "<package>",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "backend",
-				Aliases: []string{"b"},
-				Value:   "brew",
-				Usage:   "backend",
-			},
-		},
+		ArgsUsage: "[backend#]package",
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
-				return fmt.Errorf("package name required")
+				return fmt.Errorf("package required — format: [backend#]name  e.g. brew#node, go#gopls")
 			}
-			pkgName := c.Args().First()
-			backendName := c.String("backend")
+
+			ref, err := parsePackageRef(c.Args().First())
+			if err != nil {
+				return err
+			}
 
 			ac, err := loadContext(c)
 			if err != nil {
@@ -38,21 +33,21 @@ func removeCommand() *cli.Command {
 			found := false
 			updated := ac.moonfile.Packages[:0]
 			for _, p := range ac.moonfile.Packages {
-				if p.PackageManager == backendName && p.BinaryName() == pkgName {
+				if p.PackageManager == ref.backend && p.BinaryName() == ref.name {
 					found = true
 					continue
 				}
 				updated = append(updated, p)
 			}
 			if !found {
-				return fmt.Errorf("package %q not found in moonpackages under %s", pkgName, backendName)
+				return fmt.Errorf("package %q not found in moonpackages.yml under %s", ref.name, ref.backend)
 			}
 
 			ac.moonfile.Packages = packages.List(updated)
 			if err := config.SavePackages(ac.configPath, ac.moonfile.Packages); err != nil {
-				return fmt.Errorf("saving moonpackages: %w", err)
+				return fmt.Errorf("saving moonpackages.yml: %w", err)
 			}
-			ui.Info(fmt.Sprintf("removed %s/%s from moonpackages", backendName, pkgName))
+			ui.Info(fmt.Sprintf("removed %s/%s from moonpackages.yml", ref.backend, ref.name))
 
 			return applyAC(c.Context, ac)
 		},

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/pyrorhythm/moonshine/pkg/backend"
+	"github.com/pyrorhythm/moonshine/pkg/runenv"
 )
 
 var _ backend.Backend = (*Backend)(nil)
@@ -83,18 +85,14 @@ func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 	return err
 }
 
-// installTarget builds the go install argument: module[/path]@version.
+// installTarget builds the go install argument: link@version.
 func installTarget(pkg backend.Package) string {
-	mod := pkg.Get("module")
-	path := pkg.Get("path")
+	link := pkg.Get("link")
 	ver := pkg.Get("version")
 	if ver == "" {
 		ver = "latest"
 	}
-	if path != "" {
-		return mod + "/" + path + "@" + ver
-	}
-	return mod + "@" + ver
+	return link + "@" + ver
 }
 
 func (b *Backend) run(ctx context.Context, args []string, capture bool) ([]byte, error) {
@@ -103,6 +101,8 @@ func (b *Backend) run(ctx context.Context, args []string, capture bool) ([]byte,
 	}
 	var buf bytes.Buffer
 	cmd := exec.CommandContext(ctx, b.goPath, args...)
+	cmd.Env = runenv.Get()
+	log.Printf("env=%+v", cmd.Env)
 	if capture {
 		cmd.Stdout = &buf
 	} else {

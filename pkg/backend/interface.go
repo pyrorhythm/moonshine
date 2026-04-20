@@ -25,16 +25,19 @@ func (p Package) Get(key string) string { return p.Meta[key] }
 // IsPinned reports whether a specific version was requested.
 func (p Package) IsPinned() bool { return p.Meta["version"] != "" }
 
-// Name returns the primary identifier used for this package by the backend.
-// For go packages this is the binary name (last path segment of the install target).
+// Name returns the binary/formula name used to identify this package.
+// For brew packages with brew_version set this is "name@brew_version".
+// For go packages this is the last path segment of the install link.
 func (p Package) Name() string {
 	switch p.PackageManager {
-	case "go":
-		target := p.Meta["module"]
-		if path := p.Meta["path"]; path != "" {
-			target = target + "/" + path
+	case "brew":
+		name := p.Meta["name"]
+		if bv := p.Meta["brew_version"]; bv != "" {
+			return name + "@" + bv
 		}
-		parts := strings.Split(target, "/")
+		return name
+	case "go":
+		parts := strings.Split(p.Meta["link"], "/")
 		return parts[len(parts)-1]
 	default:
 		return p.Meta["name"]

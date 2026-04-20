@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"github.com/pyrorhythm/moonshine/internal/ui"
@@ -8,7 +8,7 @@ import (
 func applyCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "apply",
-		Usage: "reconcile system state with moonfile",
+		Usage: "reconcile system state with moonpackages",
 		Action: func(c *cli.Context) error {
 			ac, err := loadContext(c)
 			if err != nil {

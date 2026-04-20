@@ -13,9 +13,9 @@ type Moonfile struct {
 	Packages packages.List
 }
 
-// packagesPath derives the moonpackages path from the moonconfig.yml path.
+// packagesPath derives the moonpackages.yml path from the moonconfig.yml path.
 func packagesPath(configPath string) string {
-	return filepath.Join(filepath.Dir(configPath), "moonpackages")
+	return filepath.Join(filepath.Dir(configPath), "moonpackages.yml")
 }
 
 // LoadMoonfile reads moonconfig.yml at configPath and moonpackages from the same directory.

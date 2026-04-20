@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -25,11 +25,10 @@ func tapCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					tapName := ac.moonfile.LocalTap
-					if err := runner.TapCreate(c.Context, tapName); err != nil {
-						return fmt.Errorf("creating tap %q: %w", tapName, err)
+					if err := runner.TapCreate(c.Context, ac.moonfile.LocalTap); err != nil {
+						return fmt.Errorf("creating tap %q: %w", ac.moonfile.LocalTap, err)
 					}
-					ui.Success(fmt.Sprintf("tap %q initialised", tapName))
+					ui.Success(fmt.Sprintf("tap %q initialised", ac.moonfile.LocalTap))
 					return nil
 				},
 			},
@@ -45,16 +44,15 @@ func tapCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					tapName := ac.moonfile.LocalTap
-					exists, err := runner.TapExists(c.Context, tapName)
+					exists, err := runner.TapExists(c.Context, ac.moonfile.LocalTap)
 					if err != nil {
 						return err
 					}
 					if !exists {
-						ui.Warn(fmt.Sprintf("tap %q does not exist; run 'ms tap init'", tapName))
+						ui.Warn(fmt.Sprintf("tap %q does not exist; run 'ms tap init'", ac.moonfile.LocalTap))
 						return nil
 					}
-					ui.Success(fmt.Sprintf("tap %q is registered", tapName))
+					ui.Success(fmt.Sprintf("tap %q is registered", ac.moonfile.LocalTap))
 					return nil
 				},
 			},

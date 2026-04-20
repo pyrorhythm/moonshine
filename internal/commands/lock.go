@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -26,10 +26,9 @@ func lockCommand() *cli.Command {
 
 			newLock := lockfile.New(string(ac.moonfile.Mode))
 			for _, dp := range ac.moonfile.Packages {
-				binaryName := dp.BinaryName()
-				if installed, ok := ss.Get(dp.PackageManager, binaryName); ok {
+				if installed, ok := ss.Get(dp.PackageManager, dp.BinaryName()); ok {
 					newLock.Upsert(dp.PackageManager, lockfile.LockedPackage{
-						Name:        binaryName,
+						Name:        dp.BinaryName(),
 						Version:     installed.Version,
 						Source:      installed.Source,
 						InstalledAt: time.Now().UTC(),

@@ -16,3 +16,7 @@ profile.cov
 go.work
 go.work.sum
 .env
+
+moonconfig.*
+moonpackages
+moonpackages.yml

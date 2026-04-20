@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"fmt"
@@ -16,7 +16,11 @@ const (
 	modeFlag    = "mode"
 )
 
-// newApp builds and returns the root urfave/cli application.
+// Run executes the moonshine CLI with the given args (typically os.Args).
+func Run(args []string) error {
+	return newApp().Run(args)
+}
+
 func newApp() *cli.App {
 	app := &cli.App{
 		Name:    "moonshine",
@@ -30,18 +34,9 @@ func newApp() *cli.App {
 				Usage:   "path to moonconfig.yml",
 				EnvVars: []string{"MOONCONFIG"},
 			},
-			&cli.BoolFlag{
-				Name:  verboseFlag,
-				Usage: "verbose output",
-			},
-			&cli.BoolFlag{
-				Name:  dryRunFlag,
-				Usage: "show what would happen without making changes",
-			},
-			&cli.StringFlag{
-				Name:  modeFlag,
-				Usage: "override operating mode (standalone|companion)",
-			},
+			&cli.BoolFlag{Name: verboseFlag, Usage: "verbose output"},
+			&cli.BoolFlag{Name: dryRunFlag, Usage: "show what would happen without making changes"},
+			&cli.StringFlag{Name: modeFlag, Usage: "override operating mode (standalone|companion)"},
 		},
 		Commands: []*cli.Command{
 			applyCommand(),
@@ -56,6 +51,7 @@ func newApp() *cli.App {
 			doctorCommand(),
 			initCommand(),
 			daemonCommand(),
+			hookCommand(),
 		},
 		ExitErrHandler: func(_ *cli.Context, err error) {
 			if err != nil {
