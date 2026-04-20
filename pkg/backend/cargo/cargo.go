@@ -59,6 +59,51 @@ func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 	return err
 }
 
+// Search runs `cargo search <query>` and returns up to 10 results.
+func (b *Backend) Search(ctx context.Context, query string) ([]backend.SearchResult, error) {
+	out, err := b.run(ctx, []string{"search", "--limit", "10", query}, true)
+	if err != nil {
+		return nil, err
+	}
+	return parseCargoSearch(out), nil
+}
+
+func parseCargoSearch(data []byte) []backend.SearchResult {
+	var results []backend.SearchResult
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Format: `name = "version"  # description`
+		if strings.HasPrefix(line, "... ") || line == "" {
+			continue
+		}
+		eqIdx := strings.Index(line, " = ")
+		if eqIdx < 0 {
+			continue
+		}
+		name := strings.TrimSpace(line[:eqIdx])
+		rest := line[eqIdx+3:]
+		var version, desc string
+		if len(rest) > 2 && rest[0] == '"' {
+			closeQ := strings.Index(rest[1:], "\"")
+			if closeQ >= 0 {
+				version = rest[1 : closeQ+1]
+				rest = rest[closeQ+2:]
+			}
+		}
+		if hashIdx := strings.Index(rest, "# "); hashIdx >= 0 {
+			desc = strings.TrimSpace(rest[hashIdx+2:])
+		}
+		results = append(results, backend.SearchResult{
+			Name:        name,
+			Version:     version,
+			Description: desc,
+			Backend:     "cargo",
+		})
+	}
+	return results
+}
+
 // parseCargoList parses `cargo install --list` output.
 func parseCargoList(data []byte) []backend.InstalledPackage {
 	var pkgs []backend.InstalledPackage

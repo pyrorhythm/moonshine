@@ -44,6 +44,19 @@ func (p Package) Name() string {
 	}
 }
 
+// SearchResult is a package found during a search.
+type SearchResult struct {
+	Name        string
+	Version     string
+	Description string
+	Backend     string
+}
+
+// Searcher is an optional interface backends may implement to support package search.
+type Searcher interface {
+	Search(ctx context.Context, query string) ([]SearchResult, error)
+}
+
 // Backend is implemented by every package manager integration.
 type Backend interface {
 	// Name returns the lowercase identifier for this backend, e.g. "brew".

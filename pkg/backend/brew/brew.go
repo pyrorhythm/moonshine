@@ -3,7 +3,6 @@ package brew
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,16 +13,16 @@ import (
 // ErrBrewNotFound is returned when the brew binary cannot be located.
 var ErrBrewNotFound = errors.New("brew not found: install Homebrew from https://brew.sh")
 
-// IRunner abstracts all brew subprocess calls for testability.
+// IRunner abstracts brew CLI subprocess calls for testability.
+// Only operations that mutate local state or read local-only state are here;
+// package metadata is fetched via apiClient instead.
 type IRunner interface {
 	ListInstalled(ctx context.Context) ([]ListEntry, error)
-	Info(ctx context.Context, names ...string) ([]FormulaInfo, error)
 	Install(ctx context.Context, formula string, args ...string) error
 	Uninstall(ctx context.Context, formula string) error
 	Extract(ctx context.Context, pkg, version, tap string) error
 	TapCreate(ctx context.Context, name string) error
 	TapExists(ctx context.Context, name string) (bool, error)
-	FormulaExists(ctx context.Context, formula string) (bool, error)
 	Upgrade(ctx context.Context, formula string) error
 }
 
@@ -118,33 +117,4 @@ func (r *Runner) ListInstalled(ctx context.Context) ([]ListEntry, error) {
 func (r *Runner) Uninstall(ctx context.Context, formula string) error {
 	_, err := r.run(ctx, []string{"uninstall", formula}, false)
 	return err
-}
-
-// Info returns detailed formula information for the given names.
-func (r *Runner) Info(ctx context.Context, names ...string) ([]FormulaInfo, error) {
-	if len(names) == 0 {
-		return nil, nil
-	}
-	args := append([]string{"info", "--json=v2"}, names...)
-	out, err := r.run(ctx, args, true)
-	if err != nil {
-		return nil, err
-	}
-	var resp infoV2Response
-	if err = json.Unmarshal(out, &resp); err != nil {
-		return nil, fmt.Errorf("parsing brew info JSON: %w", err)
-	}
-	return resp.Formulae, nil
-}
-
-// FormulaExists reports whether a formula name resolves in any tap.
-func (r *Runner) FormulaExists(ctx context.Context, formula string) (bool, error) {
-	_, err := r.run(ctx, []string{"info", formula}, true)
-	if err != nil {
-		if be, ok := err.(*Error); ok && be.ExitCode != 0 {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
 }

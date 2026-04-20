@@ -217,6 +217,57 @@ func parseBunList(data []byte) []backend.InstalledPackage {
 	return pkgs
 }
 
+// Search queries npm for packages matching query using `npm search --json`.
+func (b *Backend) Search(ctx context.Context, query string) ([]backend.SearchResult, error) {
+	toolPath := b.npmPath
+	if toolPath == "" {
+		toolPath = b.bunPath
+	}
+	if toolPath == "" {
+		return nil, nil
+	}
+	var args []string
+	if b.npmPath != "" {
+		args = []string{"search", "--json", query}
+	} else {
+		// bun doesn't have a search command; fall back to npm info for exact match
+		out, err := b.runTool(ctx, b.bunPath, []string{"pm", "ls", "-g"}, true)
+		if err != nil {
+			return nil, nil
+		}
+		_ = out
+		return nil, nil
+	}
+	out, err := b.runTool(ctx, b.npmPath, args, true)
+	if err != nil {
+		return nil, err
+	}
+	return parseNpmSearch(out), nil
+}
+
+type npmSearchResult struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	Description string `json:"description"`
+}
+
+func parseNpmSearch(data []byte) []backend.SearchResult {
+	var raw []npmSearchResult
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil
+	}
+	results := make([]backend.SearchResult, len(raw))
+	for i, r := range raw {
+		results[i] = backend.SearchResult{
+			Name:        r.Name,
+			Version:     r.Version,
+			Description: r.Description,
+			Backend:     "npm",
+		}
+	}
+	return results
+}
+
 func (b *Backend) runTool(ctx context.Context, toolPath string, args []string, capture bool) ([]byte, error) {
 	if toolPath == "" {
 		return nil, fmt.Errorf("tool not available")

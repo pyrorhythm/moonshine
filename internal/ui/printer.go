@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pyrorhythm/moonshine/internal/reconciler"
+	"github.com/pyrorhythm/moonshine/pkg/backend"
 )
 
 // Banner prints the moonshine brand header.
@@ -57,6 +58,39 @@ func PrintDiff(w io.Writer, result reconciler.DiffResult) {
 			line = fmt.Sprintf("  %s %s%s", styleRemove.Render("-"), name, backendLabel)
 		}
 		fmt.Fprintln(w, line)
+	}
+}
+
+// SearchResultGroup is one backend's results, used by PrintSearchResults.
+type SearchResultGroup struct {
+	Name    string
+	Results []backend.SearchResult
+	Err     error
+}
+
+// PrintSearchResults renders grouped search results to stdout.
+func PrintSearchResults(groups []SearchResultGroup, query string) {
+	for _, g := range groups {
+		if g.Err != nil {
+			fmt.Printf("  %s %s\n", styleWarn.Render("["+g.Name+"]"), styleMuted.Render("search failed: "+g.Err.Error()))
+			continue
+		}
+		if len(g.Results) == 0 {
+			continue
+		}
+		fmt.Println(styleBrand.Render("  " + g.Name))
+		for _, r := range g.Results {
+			ver := ""
+			if r.Version != "" {
+				ver = styleVersion.Render("@" + r.Version)
+			}
+			desc := ""
+			if r.Description != "" {
+				desc = styleMuted.Render("  " + r.Description)
+			}
+			fmt.Printf("    %s%s%s\n", styleName.Render(r.Name), ver, desc)
+		}
+		fmt.Println()
 	}
 }
 

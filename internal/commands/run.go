@@ -58,6 +58,7 @@ func newApp() *cli.App {
 			diffCommand(),
 			statusCommand(),
 			addCommand(),
+			searchCommand(),
 			removeCommand(),
 			lockCommand(),
 			updateCommand(),

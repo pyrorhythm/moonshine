@@ -5,13 +5,14 @@ import (
 
 	"github.com/pyrorhythm/moonshine/internal/config"
 	"github.com/pyrorhythm/moonshine/internal/ui"
+	"github.com/pyrorhythm/moonshine/pkg/backend"
 	"github.com/urfave/cli/v2"
 )
 
 func addCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "add",
-		Usage:     "add a package to moonpackages and apply",
+		Usage:     "search, install, and add a package to moonpackages",
 		ArgsUsage: "[backend#]package[@version]",
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
@@ -34,15 +35,96 @@ func addCommand() *cli.Command {
 				}
 			}
 
-			pkg := refToPackage(ref)
-			ac.moonfile.Packages = append(ac.moonfile.Packages, pkg)
-
-			if err := config.SavePackages(ac.configPath, ac.moonfile.Packages); err != nil {
-				return fmt.Errorf("saving moonpackages.yml: %w", err)
+			b, ok := ac.registry.Get(ref.backend)
+			if !ok {
+				return fmt.Errorf("unknown backend %q", ref.backend)
 			}
-			ui.Info(fmt.Sprintf("added %s/%s to moonpackages.yml", ref.backend, ref.name))
 
-			return applyAC(c.Context, ac)
+			found, err := searchBackend(c, b, ref.backend, ref.name)
+			if err != nil {
+				return err
+			}
+
+			if found {
+				return installAndAdd(c, ac, b, ref)
+			}
+
+			// Not found in preferred backend — search all others.
+			ui.Warn(fmt.Sprintf("%q not found in %s, searching other backends...", ref.name, ref.backend))
+
+			var crossResults []backend.SearchResult
+			for _, other := range ac.registry.All() {
+				if other.Name() == ref.backend || !other.Available() {
+					continue
+				}
+				s, ok := other.(backend.Searcher)
+				if !ok {
+					continue
+				}
+				results, err := s.Search(c.Context, ref.name)
+				if err != nil {
+					continue
+				}
+				crossResults = append(crossResults, results...)
+			}
+
+			if len(crossResults) == 0 {
+				return fmt.Errorf("package %q not found in any available backend", ref.name)
+			}
+
+			chosen := ui.PickSearchResult(crossResults)
+			if chosen == nil {
+				ui.Info("aborted")
+				return nil
+			}
+
+			selectedRef := packageRef{
+				backend: chosen.Backend,
+				name:    chosen.Name,
+				version: ref.version,
+			}
+			selectedB, _ := ac.registry.Get(chosen.Backend)
+			return installAndAdd(c, ac, selectedB, selectedRef)
 		},
 	}
+}
+
+// searchBackend checks if name exists in b. Returns true if found or if b
+// doesn't implement Searcher (optimistic — let install fail naturally).
+func searchBackend(c *cli.Context, b backend.Backend, backendName, name string) (bool, error) {
+	s, ok := b.(backend.Searcher)
+	if !ok {
+		return true, nil
+	}
+	ui.Info(fmt.Sprintf("searching %s for %q...", backendName, name))
+	results, err := s.Search(c.Context, name)
+	if err != nil {
+		// Search failure is non-fatal — optimistically proceed.
+		ui.Warn(fmt.Sprintf("search error: %s", err))
+		return true, nil
+	}
+	for _, r := range results {
+		if r.Name == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// installAndAdd installs pkg via b then appends it to moonpackages.yml.
+func installAndAdd(c *cli.Context, ac *appContext, b backend.Backend, ref packageRef) error {
+	pkg := refToPackage(ref)
+	bpkg := backend.Package{PackageManager: pkg.PackageManager, Meta: pkg.Meta}
+
+	ui.Info(fmt.Sprintf("installing %s/%s...", ref.backend, ref.name))
+	if err := b.Install(c.Context, bpkg); err != nil {
+		return fmt.Errorf("install failed: %w", err)
+	}
+
+	ac.moonfile.Packages = append(ac.moonfile.Packages, pkg)
+	if err := config.SavePackages(ac.configPath, ac.moonfile.Packages); err != nil {
+		return fmt.Errorf("saving moonpackages.yml: %w", err)
+	}
+	ui.Success(fmt.Sprintf("added %s/%s to moonpackages.yml", ref.backend, ref.name))
+	return nil
 }
