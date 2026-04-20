@@ -50,33 +50,24 @@ func (b *Backend) ListInstalled(context.Context) ([]backend.InstalledPackage, er
 			continue
 		}
 		pkgs = append(pkgs, backend.InstalledPackage{
-			Name:    e.Name(),
-			Version: "", // version unknown without go version <binary>
-			Source:  "go",
+			Name:   e.Name(),
+			Source: "go",
 		})
 	}
 	return pkgs, nil
 }
 
 func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
-	var target string
-	if pkg.IsPinned() {
-		target = pkg.Name + "@" + pkg.Version
-	} else {
-		target = pkg.Name + "@latest"
-	}
+	target := installTarget(pkg)
 	_, err := b.run(ctx, []string{"install", target}, false)
 	return err
 }
 
 func (b *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
-	// `go` has no uninstall; remove the binary from GOPATH/bin.
 	if b.binDir == "" {
 		return fmt.Errorf("GOPATH bin directory unknown")
 	}
-	// binary name is the last path component
-	parts := strings.Split(pkg.Name, "/")
-	binName := parts[len(parts)-1]
+	binName := pkg.Name() // last path segment
 	binPath := filepath.Join(b.binDir, binName)
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
@@ -88,8 +79,22 @@ func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 	if pkg.IsPinned() {
 		return nil
 	}
-	_, err := b.run(ctx, []string{"install", pkg.Name + "@latest"}, false)
+	_, err := b.run(ctx, []string{"install", installTarget(pkg)}, false)
 	return err
+}
+
+// installTarget builds the go install argument: module[/path]@version.
+func installTarget(pkg backend.Package) string {
+	mod := pkg.Get("module")
+	path := pkg.Get("path")
+	ver := pkg.Get("version")
+	if ver == "" {
+		ver = "latest"
+	}
+	if path != "" {
+		return mod + "/" + path + "@" + ver
+	}
+	return mod + "@" + ver
 }
 
 func (b *Backend) run(ctx context.Context, args []string, capture bool) ([]byte, error) {

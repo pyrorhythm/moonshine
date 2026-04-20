@@ -34,11 +34,8 @@ func New(cfg BackendConfig) *Backend {
 	return &Backend{config: cfg}
 }
 
-func (s *Backend) Name() string { return s.config.Name }
-
-func (s *Backend) Available() bool {
-	return true
-}
+func (s *Backend) Name() string    { return s.config.Name }
+func (s *Backend) Available() bool { return true }
 
 // ListInstalled runs the list command and parses "name version" lines.
 func (s *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage, error) {
@@ -64,14 +61,9 @@ func (s *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage
 }
 
 func (s *Backend) Install(ctx context.Context, pkg backend.Package) error {
-	var tmpl string
-	if pkg.IsPinned() {
-		tmpl = s.config.Install
-	} else {
+	tmpl := s.config.Install
+	if !pkg.IsPinned() && s.config.InstallLatest != "" {
 		tmpl = s.config.InstallLatest
-		if tmpl == "" {
-			tmpl = s.config.Install
-		}
 	}
 	_, err := s.run(ctx, tmpl, pkg)
 	return err
@@ -91,6 +83,49 @@ func (s *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 	return err
 }
 
+// templateData exposes package fields to shell templates.
+type templateData struct {
+	Name    string
+	Version string
+	Meta    map[string]string
+}
+
+func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) ([]byte, error) {
+	if toRun == "" {
+		return nil, fmt.Errorf("backend %q: command template is empty", s.config.Name)
+	}
+
+	tmpl, err := template.New(s.config.Name).Option("missingkey=error").Parse(toRun)
+	if err != nil {
+		return nil, fmt.Errorf("backend %q: failed to parse cmd tmpl (%s): %w", s.config.Name, toRun, err)
+	}
+
+	data := templateData{
+		Name:    pkg.Get("name"),
+		Version: pkg.Get("version"),
+		Meta:    pkg.Meta,
+	}
+
+	var buf bytes.Buffer
+	if err = tmpl.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("failed to execute cmd tmpl: %w", err)
+	}
+
+	script := buf.String()
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "sh"
+	}
+	buf.Reset()
+	execCmd := exec.CommandContext(ctx, shell, "-c", script)
+	execCmd.Stdout = &buf
+	execCmd.Stderr = os.Stderr
+	if err = execCmd.Run(); err != nil {
+		return nil, fmt.Errorf("backend %q: %w", s.config.Name, err)
+	}
+	return buf.Bytes(), nil
+}
+
 func (s *Backend) plainRun(ctx context.Context, cmd string) ([]byte, error) {
 	if cmd == "" {
 		return nil, fmt.Errorf("backend %q: command is empty", s.config.Name)
@@ -104,40 +139,6 @@ func (s *Backend) plainRun(ctx context.Context, cmd string) ([]byte, error) {
 	execCmd.Stdout = &buf
 	execCmd.Stderr = os.Stderr
 	if err := execCmd.Run(); err != nil {
-		return nil, fmt.Errorf("backend %q: %w", s.config.Name, err)
-	}
-	return buf.Bytes(), nil
-}
-
-func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) ([]byte, error) {
-	if toRun == "" {
-		return nil, fmt.Errorf("backend %q: command template is empty", s.config.Name)
-	}
-
-	tmpl, err := template.New(s.config.Name).Option("missingkey=error").Parse(toRun)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"backend %q: failed to parse cmd tmpl (%s): %w",
-			s.config.Name, toRun, err,
-		)
-	}
-
-	var buf bytes.Buffer
-	if err = tmpl.Execute(&buf, pkg); err != nil {
-		return nil, fmt.Errorf("failed to execute cmd tmpl: %w", err)
-	}
-
-	script := buf.String()
-
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "sh"
-	}
-	buf.Reset()
-	execCmd := exec.CommandContext(ctx, shell, "-c", script)
-	execCmd.Stdout = &buf
-	execCmd.Stderr = os.Stderr
-	if err = execCmd.Run(); err != nil {
 		return nil, fmt.Errorf("backend %q: %w", s.config.Name, err)
 	}
 	return buf.Bytes(), nil

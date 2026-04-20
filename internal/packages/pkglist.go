@@ -1,4 +1,4 @@
 package packages
 
-// List represents content of moonfile.yml
-type List map[string][]Package
+// List is the flat ordered list of all declared packages.
+type List []Package

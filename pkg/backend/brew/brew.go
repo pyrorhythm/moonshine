@@ -73,7 +73,8 @@ func (r *Runner) run(ctx context.Context, args []string, captureStdout bool) ([]
 	cmd.Stderr = r.stderr
 
 	if err := cmd.Run(); err != nil {
-		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			return nil, &Error{
 				Args:     args,
 				ExitCode: exitErr.ExitCode(),

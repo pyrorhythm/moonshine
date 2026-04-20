@@ -1,16 +1,19 @@
 build:
-    goutil build -o build/moonshine .
+    go build -o bin/moonshine .
 
 test:
-    goutil test ./...
+    go test ./...
 
 lint:
     golangci-lint run
 
 install: build
-    cp build/moonshine /usr/local/bin/moonshine
+    cp bin/moonshine /usr/local/bin/moonshine
     ln -sf /usr/local/bin/moonshine /usr/local/bin/moon
     ln -sf /usr/local/bin/moonshine /usr/local/bin/ms
 
 clean:
     rm -rf bin/
+
+snapshot:
+    goreleaser release --snapshot --clean

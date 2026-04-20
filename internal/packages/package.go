@@ -1,19 +1,35 @@
 package packages
 
-// Package is a single entry in the packages map.
+import "strings"
+
+// Package is a single package entry.
+// PackageManager identifies the backend; Meta holds backend-specific metadata.
 type Package struct {
-	Name    string   `yaml:"name"`
-	Version string   `yaml:"version,omitempty"`
-	Options []string `yaml:"options,omitempty"`
+	PackageManager string
+	Meta           map[string]string
 }
 
-// Pinned reports whether this package declares a specific version.
-func (p Package) Pinned() bool { return p.Version != "" }
+// Get returns a metadata value.
+func (p Package) Get(key string) string { return p.Meta[key] }
 
-// FQN returns the canonical install target, e.g. "git@2.41.0" or "git".
-func (p Package) FQN() string {
-	if p.Pinned() {
-		return p.Name + "@" + p.Version
+// BinaryName returns the binary/formula name used to match against installed packages.
+// For go packages this is the last path segment of the install target.
+func (p Package) BinaryName() string {
+	switch p.PackageManager {
+	case "go":
+		target := p.Meta["module"]
+		if path := p.Meta["path"]; path != "" {
+			target = target + "/" + path
+		}
+		parts := strings.Split(target, "/")
+		return parts[len(parts)-1]
+	default:
+		return p.Meta["name"]
 	}
-	return p.Name
 }
+
+// Version returns the pinned version, or empty for latest.
+func (p Package) Version() string { return p.Meta["version"] }
+
+// Pinned reports whether a specific version is requested.
+func (p Package) Pinned() bool { return p.Meta["version"] != "" }
