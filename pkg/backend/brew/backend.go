@@ -60,11 +60,11 @@ func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
 }
 
 func (b *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
-	return b.runner.Uninstall(ctx, formulaBase(pkg))
+	return b.runner.Uninstall(ctx, formulaRef(pkg))
 }
 
 func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
-	return b.runner.Upgrade(ctx, formulaBase(pkg))
+	return b.runner.Upgrade(ctx, formulaRef(pkg))
 }
 
 // Search queries formulae.brew.sh for packages matching query.
@@ -73,13 +73,20 @@ func (b *Backend) Search(ctx context.Context, query string) ([]backend.SearchRes
 }
 
 // formulaBase returns the base formula name, incorporating brew_version variant if set.
-// e.g. name=openssl brew_version=3 → "openssl@3"
 func formulaBase(pkg backend.Package) string {
 	name := pkg.Get("name")
 	if bv := pkg.Get("brew_version"); bv != "" {
 		return name + "@" + bv
 	}
 	return name
+}
+
+func formulaRef(pkg backend.Package) string {
+	base := formulaBase(pkg)
+	if tap := pkg.Get("tap"); tap != "" {
+		return tap + "/" + base
+	}
+	return base
 }
 
 // resolveFormula returns the formula string to pass to `brew install`.
@@ -91,6 +98,9 @@ func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (stri
 	tap := pkg.Get("tap")
 
 	if tap != "" {
+		if version != "" {
+			return tap + "/" + base + "@" + version, nil
+		}
 		return tap + "/" + base, nil
 	}
 	if version == "" {
