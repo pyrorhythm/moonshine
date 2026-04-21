@@ -26,8 +26,7 @@ func defaultConfigPath() string {
 	return filepath.Join(xdg, "moonshine", "moonconfig.yml")
 }
 
-// All returns every subcommand registered in this package.
-func All() []*cli.Command {
+func Commands() []*cli.Command {
 	return []*cli.Command{
 		applyCommand(),
 		diffCommand(),
@@ -46,13 +45,17 @@ func All() []*cli.Command {
 	}
 }
 
-// Flag names re-exported for cmd wiring.
-const (
-	ConfigFlag  = configFlag
-	VerboseFlag = verboseFlag
-	DryRunFlag  = dryRunFlag
-	ModeFlag    = modeFlag
-)
-
-// DefaultConfigPath returns the default moonconfig.yml location.
-func DefaultConfigPath() string { return defaultConfigPath() }
+func Flags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:    configFlag,
+			Aliases: []string{"c"},
+			Value:   defaultConfigPath(),
+			Usage:   "path to moonconfig.yml",
+			EnvVars: []string{"MOONCONFIG"},
+		},
+		&cli.BoolFlag{Name: verboseFlag, Usage: "verbose output"},
+		&cli.BoolFlag{Name: dryRunFlag, Usage: "show what would happen without making changes"},
+		&cli.StringFlag{Name: modeFlag, Usage: "override operating mode (standalone|companion)"},
+	}
+}
