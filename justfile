@@ -20,15 +20,10 @@ snapshot:
 
 updsum SEMVER:
 	sleep 3
-	curl https://sum.golang.org/lookup/github.com/pyrorhythm/fn@{{SEMVER}}
+	curl https://sum.golang.org/lookup/pyrorhythm.dev/moonshine@{{SEMVER}}
 
 tag-push SEMVER:
 	git tag {{SEMVER}}
 	git push origin {{SEMVER}}
 
-commit-push SEMVER:
-    git add . ; git commit -m "release: {{SEMVER}}"
-    git tag {{SEMVER}}
-    git push ; git push origin {{SEMVER}}
-
-release SEMVER: test (commit-push SEMVER) (updsum SEMVER)
+release SEMVER: test (tag-push SEMVER) (updsum SEMVER)
