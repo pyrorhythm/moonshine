@@ -17,8 +17,6 @@ const (
 	modeFlag    = "mode"
 )
 
-// defaultConfigPath returns $XDG_CONFIG_HOME/moonshine/moonconfig.yml,
-// falling back to ~/.config/moonshine/moonconfig.yml per the XDG spec.
 func defaultConfigPath() string {
 	xdg := os.Getenv("XDG_CONFIG_HOME")
 	if xdg == "" {

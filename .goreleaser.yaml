@@ -1,0 +1,93 @@
+version: 2
+
+project_name: moonshine
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: ms
+    main: ./cmd/ms
+    binary: ms
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: pyrorhythm
+    name: moonshine
+  draft: false
+  prerelease: auto
+
+brews:
+  - name: moonshine
+    repository:
+      owner: pyrorhythm
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/pyrorhythm/moonshine
+    description: Moonshine CLI
+    license: MIT
+    install: |
+      bin.install "ms"
+      bin.install_symlink "ms" => "moon"
+      bin.install_symlink "ms" => "moonshine"
+    test: |
+      system "#{bin}/ms", "--version"
