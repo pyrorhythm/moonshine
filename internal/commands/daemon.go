@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/daemon"
 	"pyrorhythm.dev/moonshine/internal/ui"
 )
@@ -18,12 +18,12 @@ func daemonCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "daemon",
 		Usage: "manage the background drift-watching daemon",
-		Subcommands: []*cli.Command{
+		Commands: []*cli.Command{
 			{
 				Name:  "start",
 				Usage: "start the background daemon",
-				Action: func(c *cli.Context) error {
-					ac, err := loadContext(c)
+				Action: func(ctx context.Context, c *cli.Command) error {
+					ac, err := loadContext(ctx, c)
 					if err != nil {
 						return err
 					}
@@ -58,7 +58,7 @@ func daemonCommand() *cli.Command {
 			{
 				Name:  "stop",
 				Usage: "stop the running daemon",
-				Action: func(_ *cli.Context) error {
+				Action: func(context.Context, *cli.Command) error {
 					pidFile := daemon.PIDPath()
 					data, err := os.ReadFile(pidFile)
 					if err != nil {
@@ -83,7 +83,7 @@ func daemonCommand() *cli.Command {
 			{
 				Name:  "status",
 				Usage: "show daemon health and last check time",
-				Action: func(_ *cli.Context) error {
+				Action: func(context.Context, *cli.Command) error {
 					report, err := daemon.ReadStatus(daemon.StatusPath())
 					if err != nil {
 						ui.Warn("daemon is not running or has never checked")

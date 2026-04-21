@@ -69,18 +69,22 @@ release:
   draft: false
   prerelease: auto
 
-brews:
+homebrew_casks:
   - name: moonshine
     repository:
       owner: pyrorhythm
       name: homebrew-tap
-    directory: Formula
-    homepage: https://github.com/pyrorhythm/moonshine
+    homepage: https://pyrorhythm.dev/moonshine
     description: Moonshine CLI
     license: MIT
-    install: |
-      bin.install "ms"
-      bin.install_symlink "ms" => "moon"
-      bin.install_symlink "ms" => "moonshine"
-    test: |
-      system "#{bin}/ms", "--version"
+    url:
+      verified: https://github.com/pyrorhythm/moonshine
+    generate_completions_from_executable:
+      args:
+        - completion
+      shell_parameter_format: arg
+      shells:
+        - bash
+        - zsh
+        - fish
+        - pwsh

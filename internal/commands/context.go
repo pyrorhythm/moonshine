@@ -1,10 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/config/mode"
 	"pyrorhythm.dev/moonshine/internal/lockfile"
@@ -26,7 +27,7 @@ type appContext struct {
 	dryRun     bool
 }
 
-func loadContext(c *cli.Context) (*appContext, error) {
+func loadContext(ctx context.Context, c *cli.Command) (*appContext, error) {
 	configPath := c.String(configFlag)
 	mf, err := config.LoadMoonfile(configPath)
 	if err != nil {

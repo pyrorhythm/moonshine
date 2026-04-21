@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/packages"
 	"pyrorhythm.dev/moonshine/internal/ui"
@@ -15,7 +16,7 @@ func removeCommand() *cli.Command {
 		Aliases:   []string{"rm"},
 		Usage:     "remove a package from moonpackages and uninstall",
 		ArgsUsage: "[backend#]package",
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
 				return fmt.Errorf(
 					"package required — format: [backend#]name  e.g. brew#node, go#gopls",
@@ -27,7 +28,7 @@ func removeCommand() *cli.Command {
 				return err
 			}
 
-			ac, err := loadContext(c)
+			ac, err := loadContext(ctx, c)
 			if err != nil {
 				return err
 			}
@@ -55,7 +56,7 @@ func removeCommand() *cli.Command {
 			}
 			ui.Info(fmt.Sprintf("removed %s/%s from moonpackages.yml", ref.backend, ref.name))
 
-			return applyAC(c.Context, ac)
+			return applyAC(ctx, ac)
 		},
 	}
 }

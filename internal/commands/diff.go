@@ -1,10 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/reconciler"
 	"pyrorhythm.dev/moonshine/internal/state"
 	"pyrorhythm.dev/moonshine/internal/ui"
@@ -14,12 +15,12 @@ func diffCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "diff",
 		Usage: "show what apply would change",
-		Action: func(c *cli.Context) error {
-			ac, err := loadContext(c)
+		Action: func(ctx context.Context, c *cli.Command) error {
+			ac, err := loadContext(ctx, c)
 			if err != nil {
 				return err
 			}
-			ss, err := state.Snapshot(c.Context, ac.registry)
+			ss, err := state.Snapshot(ctx, ac.registry)
 			if err != nil {
 				return fmt.Errorf("snapshot: %w", err)
 			}

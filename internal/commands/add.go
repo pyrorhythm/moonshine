@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/ui"
 	"pyrorhythm.dev/moonshine/pkg/backend"
@@ -14,7 +15,7 @@ func addCommand() *cli.Command {
 		Name:      "add",
 		Usage:     "search, install, and add a package to moonpackages",
 		ArgsUsage: "[backend#]package[@version]",
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
 				return fmt.Errorf(
 					"package required — format: [backend#]name[@version]  e.g. brew#node@22, go#golang.org/x/tools/gopls",
@@ -26,7 +27,7 @@ func addCommand() *cli.Command {
 				return err
 			}
 
-			ac, err := loadContext(c)
+			ac, err := loadContext(ctx, c)
 			if err != nil {
 				return err
 			}
@@ -46,13 +47,13 @@ func addCommand() *cli.Command {
 				return fmt.Errorf("unknown backend %q", ref.backend)
 			}
 
-			found, err := searchBackend(c, b, ref.backend, ref.name)
+			found, err := searchBackend(ctx, c, b, ref.backend, ref.name)
 			if err != nil {
 				return err
 			}
 
 			if found {
-				return installAndAdd(c, ac, b, ref)
+				return installAndAdd(ctx, c, ac, b, ref)
 			}
 
 			// Not found in preferred backend — search all others.
@@ -73,7 +74,7 @@ func addCommand() *cli.Command {
 				if !ok {
 					continue
 				}
-				results, err := s.Search(c.Context, ref.name)
+				results, err := s.Search(ctx, ref.name)
 				if err != nil {
 					continue
 				}
@@ -96,20 +97,20 @@ func addCommand() *cli.Command {
 				version: ref.version,
 			}
 			selectedB, _ := ac.registry.Get(chosen.Backend)
-			return installAndAdd(c, ac, selectedB, selectedRef)
+			return installAndAdd(ctx, c, ac, selectedB, selectedRef)
 		},
 	}
 }
 
 // searchBackend checks if name exists in b. Returns true if found or if b
 // doesn't implement Searcher (optimistic — let install fail naturally).
-func searchBackend(c *cli.Context, b backend.Backend, backendName, name string) (bool, error) {
+func searchBackend(ctx context.Context, c *cli.Command, b backend.Backend, backendName, name string) (bool, error) {
 	s, ok := b.(backend.Searcher)
 	if !ok {
 		return true, nil
 	}
 	ui.Info(fmt.Sprintf("searching %s for %q...", backendName, name))
-	results, err := s.Search(c.Context, name)
+	results, err := s.Search(ctx, name)
 	if err != nil {
 		// Search failure is non-fatal — optimistically proceed.
 		ui.Warn(fmt.Sprintf("search error: %s", err))
@@ -124,12 +125,12 @@ func searchBackend(c *cli.Context, b backend.Backend, backendName, name string) 
 }
 
 // installAndAdd installs pkg via b then appends it to moonpackages.yml.
-func installAndAdd(c *cli.Context, ac *appContext, b backend.Backend, ref packageRef) error {
+func installAndAdd(ctx context.Context, c *cli.Command, ac *appContext, b backend.Backend, ref packageRef) error {
 	pkg := refToPackage(ref)
 	bpkg := backend.Package{PackageManager: pkg.PackageManager, Meta: pkg.Meta}
 
 	ui.Info(fmt.Sprintf("installing %s/%s...", ref.backend, ref.name))
-	if err := b.Install(c.Context, bpkg); err != nil {
+	if err := b.Install(ctx, bpkg); err != nil {
 		return fmt.Errorf("install failed: %w", err)
 	}
 

@@ -1,10 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/reconciler"
 	"pyrorhythm.dev/moonshine/internal/state"
 	"pyrorhythm.dev/moonshine/internal/ui"
@@ -14,8 +15,8 @@ func doctorCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "doctor",
 		Usage: "diagnose drift, conflicts, and configuration issues",
-		Action: func(c *cli.Context) error {
-			ac, err := loadContext(c)
+		Action: func(ctx context.Context, c *cli.Command) error {
+			ac, err := loadContext(ctx, c)
 			if err != nil {
 				return err
 			}
@@ -29,7 +30,7 @@ func doctorCommand() *cli.Command {
 				}
 			}
 
-			ss, err := state.Snapshot(c.Context, ac.registry)
+			ss, err := state.Snapshot(ctx, ac.registry)
 			if err != nil {
 				ui.Error("could not take system snapshot: " + err.Error())
 				issues++

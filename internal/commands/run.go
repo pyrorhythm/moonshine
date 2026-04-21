@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const (
@@ -52,7 +52,7 @@ func Flags() []cli.Flag {
 			Aliases: []string{"c"},
 			Value:   defaultConfigPath(),
 			Usage:   "path to moonconfig.yml",
-			EnvVars: []string{"MOONCONFIG"},
+			Sources: cli.EnvVars("MOONCONFIG"),
 		},
 		&cli.BoolFlag{Name: verboseFlag, Usage: "verbose output"},
 		&cli.BoolFlag{Name: dryRunFlag, Usage: "show what would happen without making changes"},

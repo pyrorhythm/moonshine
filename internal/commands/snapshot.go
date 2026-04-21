@@ -1,12 +1,13 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/lockfile"
 	"pyrorhythm.dev/moonshine/internal/packages"
@@ -31,7 +32,7 @@ func snapshotCommand() *cli.Command {
 				Usage:   "snapshot only this backend",
 			},
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			output := c.String("output")
 			backendFilter := c.String("backend")
 
@@ -41,7 +42,7 @@ func snapshotCommand() *cli.Command {
 				return err
 			}
 
-			ss, err := state.Snapshot(c.Context, reg)
+			ss, err := state.Snapshot(ctx, reg)
 			if err != nil {
 				return fmt.Errorf("snapshot: %w", err)
 			}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/lockfile"
 	"pyrorhythm.dev/moonshine/internal/state"
 	"pyrorhythm.dev/moonshine/internal/ui"
@@ -17,12 +17,12 @@ func updateCommand() *cli.Command {
 		Name:      "update",
 		Usage:     "upgrade unpinned packages to latest",
 		ArgsUsage: "[[backend#]package]",
-		Action: func(c *cli.Context) error {
-			ac, err := loadContext(c)
+		Action: func(ctx context.Context, c *cli.Command) error {
+			ac, err := loadContext(ctx, c)
 			if err != nil {
 				return err
 			}
-			ss, err := state.Snapshot(c.Context, ac.registry)
+			ss, err := state.Snapshot(ctx, ac.registry)
 			if err != nil {
 				return fmt.Errorf("snapshot: %w", err)
 			}
@@ -36,7 +36,7 @@ func updateCommand() *cli.Command {
 				targetBackend, targetName = ref.backend, ref.name
 			}
 
-			return doUpdate(c.Context, ac, ss, targetBackend, targetName)
+			return doUpdate(ctx, ac, ss, targetBackend, targetName)
 		},
 	}
 }

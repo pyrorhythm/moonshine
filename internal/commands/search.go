@@ -1,10 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/ui"
 	"pyrorhythm.dev/moonshine/pkg/backend"
 )
@@ -14,13 +15,13 @@ func searchCommand() *cli.Command {
 		Name:      "search",
 		Usage:     "search for packages across all available backends",
 		ArgsUsage: "<query>",
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
 				return fmt.Errorf("query required")
 			}
 			query := c.Args().First()
 
-			ac, err := loadContext(c)
+			ac, err := loadContext(ctx, c)
 			if err != nil {
 				return err
 			}
@@ -39,7 +40,7 @@ func searchCommand() *cli.Command {
 				wg.Add(1)
 				go func(name string, s backend.Searcher) {
 					defer wg.Done()
-					results, err := s.Search(c.Context, query)
+					results, err := s.Search(ctx, query)
 					mu.Lock()
 					groups = append(
 						groups,

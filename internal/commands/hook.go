@@ -1,12 +1,13 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 func hookCommand() *cli.Command {
@@ -23,7 +24,7 @@ Examples:
   nushell:   ms hook nu  (paste output into config.nu)
   xonsh:     execx($(ms hook xonsh))
   ion:       eval $(ms hook ion)`,
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			shellName := c.Args().First()
 			if shellName == "" {
 				shellName = detectShell()

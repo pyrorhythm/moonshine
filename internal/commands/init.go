@@ -2,12 +2,13 @@ package commands
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/config/mode"
 	"pyrorhythm.dev/moonshine/internal/ui"
@@ -25,7 +26,7 @@ func initCommand() *cli.Command {
 				Usage:   "output path for moonconfig.yml",
 			},
 		},
-		Action: func(c *cli.Context) error {
+		Action: func(ctx context.Context, c *cli.Command) error {
 			output := c.String("output")
 
 			if _, err := os.Stat(output); err == nil {

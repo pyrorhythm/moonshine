@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/ui"
 	brewbackend "pyrorhythm.dev/moonshine/pkg/backend/brew"
 )
@@ -12,12 +13,12 @@ func tapCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "tap",
 		Usage: "manage the moonshine local brew tap",
-		Subcommands: []*cli.Command{
+		Commands: []*cli.Command{
 			{
 				Name:  "init",
 				Usage: "create and register the local tap",
-				Action: func(c *cli.Context) error {
-					ac, err := loadContext(c)
+				Action: func(ctx context.Context, c *cli.Command) error {
+					ac, err := loadContext(ctx, c)
 					if err != nil {
 						return err
 					}
@@ -25,7 +26,7 @@ func tapCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					if err := runner.TapCreate(c.Context, ac.moonfile.LocalTap); err != nil {
+					if err := runner.TapCreate(ctx, ac.moonfile.LocalTap); err != nil {
 						return fmt.Errorf("creating tap %q: %w", ac.moonfile.LocalTap, err)
 					}
 					ui.Success(fmt.Sprintf("tap %q initialised", ac.moonfile.LocalTap))
@@ -35,8 +36,8 @@ func tapCommand() *cli.Command {
 			{
 				Name:  "status",
 				Usage: "show local tap info",
-				Action: func(c *cli.Context) error {
-					ac, err := loadContext(c)
+				Action: func(ctx context.Context, c *cli.Command) error {
+					ac, err := loadContext(ctx, c)
 					if err != nil {
 						return err
 					}
@@ -44,7 +45,7 @@ func tapCommand() *cli.Command {
 					if err != nil {
 						return err
 					}
-					exists, err := runner.TapExists(c.Context, ac.moonfile.LocalTap)
+					exists, err := runner.TapExists(ctx, ac.moonfile.LocalTap)
 					if err != nil {
 						return err
 					}
