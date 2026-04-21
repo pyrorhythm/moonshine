@@ -1,14 +1,11 @@
 package commands
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/urfave/cli/v2"
 )
-
-const Version = "0.1.0"
 
 const (
 	configFlag  = "config"
@@ -29,50 +26,33 @@ func defaultConfigPath() string {
 	return filepath.Join(xdg, "moonshine", "moonconfig.yml")
 }
 
-// Run executes the moonshine CLI with the given args (typically os.Args).
-func Run(args []string) error {
-	return newApp().Run(args)
+// All returns every subcommand registered in this package.
+func All() []*cli.Command {
+	return []*cli.Command{
+		applyCommand(),
+		diffCommand(),
+		statusCommand(),
+		addCommand(),
+		searchCommand(),
+		removeCommand(),
+		lockCommand(),
+		updateCommand(),
+		tapCommand(),
+		snapshotCommand(),
+		doctorCommand(),
+		initCommand(),
+		daemonCommand(),
+		hookCommand(),
+	}
 }
 
-func newApp() *cli.App {
-	app := &cli.App{
-		Name:    "moonshine",
-		Usage:   "declarative package manager",
-		Version: Version,
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    configFlag,
-				Aliases: []string{"c"},
-				Value:   defaultConfigPath(),
-				Usage:   "path to moonconfig.yml",
-				EnvVars: []string{"MOONCONFIG"},
-			},
-			&cli.BoolFlag{Name: verboseFlag, Usage: "verbose output"},
-			&cli.BoolFlag{Name: dryRunFlag, Usage: "show what would happen without making changes"},
-			&cli.StringFlag{Name: modeFlag, Usage: "override operating mode (standalone|companion)"},
-		},
-		Commands: []*cli.Command{
-			applyCommand(),
-			diffCommand(),
-			statusCommand(),
-			addCommand(),
-			searchCommand(),
-			removeCommand(),
-			lockCommand(),
-			updateCommand(),
-			tapCommand(),
-			snapshotCommand(),
-			doctorCommand(),
-			initCommand(),
-			daemonCommand(),
-			hookCommand(),
-		},
-		ExitErrHandler: func(_ *cli.Context, err error) {
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "error: "+err.Error())
-				os.Exit(1)
-			}
-		},
-	}
-	return app
-}
+// Flag names re-exported for cmd wiring.
+const (
+	ConfigFlag  = configFlag
+	VerboseFlag = verboseFlag
+	DryRunFlag  = dryRunFlag
+	ModeFlag    = modeFlag
+)
+
+// DefaultConfigPath returns the default moonconfig.yml location.
+func DefaultConfigPath() string { return defaultConfigPath() }
