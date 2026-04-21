@@ -74,6 +74,7 @@ homebrew_casks:
     repository:
       owner: pyrorhythm
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://pyrorhythm.dev/moonshine
     description: Moonshine CLI
     license: MIT
