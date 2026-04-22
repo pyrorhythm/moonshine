@@ -5,5 +5,5 @@
 ## install
 
 ```shell
-go install pyrorhythm.dev/moonshine/cmd/ms@latest
+go install pyrorhythm.dev/moonshine@latest
 ```

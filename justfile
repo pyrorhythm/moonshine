@@ -8,9 +8,9 @@ lint:
     golangci-lint run
 
 install: build
-    cp bin/ms /usr/local/bin/ms
-    ln -sf /usr/local/bin/ms /usr/local/bin/moon
-    ln -sf /usr/local/bin/ms /usr/local/bin/moonshine
+    cp bin/moonshine /usr/local/bin/moonshine
+    ln -sf /usr/local/bin/moonshine /usr/local/bin/moon
+    ln -sf /usr/local/bin/moonshine /usr/local/bin/ms
 
 clean:
     rm -rf bin/

@@ -7,9 +7,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: ms
-    main: ./cmd/ms
-    binary: ms
+  - id: moonshine
+    main: ./cmd/moonshine
+    binary: moonshine
     env:
       - CGO_ENABLED=0
     goos:
@@ -76,7 +76,7 @@ homebrew_casks:
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://pyrorhythm.dev/moonshine
-    description: Moonshine CLI
+    description: moonshine -- missing declarative package manager aggregator for MacOS
     license: MIT
     url:
       verified: https://github.com/pyrorhythm/moonshine
