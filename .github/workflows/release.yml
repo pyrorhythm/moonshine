@@ -10,101 +10,24 @@ permissions:
 
 jobs:
   goreleaser:
-    environment: release
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: c/o repo
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - uses: actions/setup-go@v5
+        name: setup gopherlang
         with:
           go-version: stable
           cache: true
 
       - uses: goreleaser/goreleaser-action@v6
+        name: release this piece of software
         with:
           distribution: goreleaser
           version: latest
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check out tap repository
-        uses: actions/checkout@v4
-        with:
-          repository: pyrorhythm/homebrew-tap
-          path: homebrew-tap
-
-      - name: Update Homebrew formula
-        env:
-          VERSION: ${{ github.ref_name }}
-          REPO: pyrorhythm/moonshine
-        run: |
-          set -euo pipefail
-
-          mkdir -p homebrew-tap/Formula
-
-          ARM_ASSET="moonshine_${VERSION#v}_macOS_arm64.tar.gz"
-          INTEL_ASSET="moonshine_${VERSION#v}_macOS_x86_64.tar.gz"
-
-          ARM_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARM_ASSET}"
-          INTEL_URL="https://github.com/${REPO}/releases/download/${VERSION}/${INTEL_ASSET}"
-
-          ARM_SHA256="$(sha256sum "dist/${ARM_ASSET}" | awk '{print $1}')"
-          INTEL_SHA256="$(sha256sum "dist/${INTEL_ASSET}" | awk '{print $1}')"
-
-          cat > homebrew-tap/Formula/moonshine.rb <<EOF
-          class Moonshine < Formula
-            desc "Missing declarative package manager aggregator for macOS"
-            homepage "https://pyrorhythm.dev/moonshine"
-            license "MIT"
-
-            on_arm do
-                url "${ARM_URL}"
-                sha256 "${ARM_SHA256}"
-            end
-
-            on_intel do
-                url "${INTEL_URL}"
-                sha256 "${INTEL_SHA256}"
-            end
-
-            def install
-                bin.install "moonshine"
-                bin.install_symlink bin/"moonshine" => "moon"
-
-                generate_completions_from_executable(
-                    bin/"moonshine",
-                    "completion",
-                    shells: [:bash, :zsh, :fish, :pwsh]
-                )
-            end
-
-            test do
-                output = shell_output("#{bin}/moonshine --version")
-                assert_match "moonshine version", output
-            end
-          end
-          EOF
-
-      - name: Commit and push formula
-        env:
-            GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          cd homebrew-tap
-          git config user.name "pyrorhythm[bot]"
-          git config user.email "bot@pyrorhythm.dev"
-
-          git add Formula/moonshine.rb
-
-          if git diff --cached --quiet; then
-            echo "no formulae changes to commit"
-            exit 0
-          fi
-
-          git commit -m "ci release: moonshine ${GITHUB_REF_NAME}"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/pyrorhythm/homebrew-tap.git HEAD:main

@@ -68,24 +68,3 @@ release:
     name: moonshine
   draft: false
   prerelease: auto
-
-homebrew_casks:
-  - name: moonshine
-    repository:
-      owner: pyrorhythm
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://pyrorhythm.dev/moonshine
-    description: moonshine -- missing declarative package manager aggregator for MacOS
-    license: MIT
-    url:
-      verified: https://github.com/pyrorhythm/moonshine
-    generate_completions_from_executable:
-      args:
-        - completion
-      shell_parameter_format: arg
-      shells:
-        - bash
-        - zsh
-        - fish
-        - pwsh
