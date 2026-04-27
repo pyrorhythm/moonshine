@@ -4,6 +4,13 @@
 
 ## install
 
+1. with `go install`:
 ```shell
-go install pyrorhythm.dev/moonshine@latest
+go install pyrorhythm.dev/moonshine/cmd/moonshine@latest
 ```
+2. with `brew`:
+```shell
+brew tap pyrorhythm/tap
+brew install moonshine
+```
+> when installing with `brew`, `moon` alias is also installed.
