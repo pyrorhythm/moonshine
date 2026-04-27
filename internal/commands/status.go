@@ -16,7 +16,7 @@ func statusCommand() *cli.Command {
 		Name:  "status",
 		Usage: "show current state vs declared state",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}

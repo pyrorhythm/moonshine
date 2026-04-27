@@ -1,6 +1,6 @@
 package mode
 
-// OperatingMode
+// OperatingMode is the mode in which moonshine manages packages.
 type OperatingMode string
 
 const (

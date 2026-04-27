@@ -86,7 +86,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 }
 
 func (d *Daemon) check(ctx context.Context) {
-	mf, err := config.LoadMoonfile(d.moonfilePath)
+	mf, err := config.LoadBundle(d.moonfilePath)
 	if err != nil {
 		d.logger.Printf("loading moonfile: %v", err)
 		return
@@ -130,7 +130,7 @@ func (d *Daemon) check(ctx context.Context) {
 				Mode:  string(mf.Mode),
 				Hooks: mf.Hooks,
 			}
-			if err := reconciler.Apply(ctx, plan, d.registry, mf, lf, opts); err != nil {
+			if err := reconciler.Apply(ctx, plan, d.registry, lf, opts); err != nil {
 				d.logger.Printf("auto-apply failed: %v", err)
 				return
 			}
@@ -188,10 +188,11 @@ func (d *Daemon) handleConn(conn net.Conn) {
 	_, _ = conn.Write(data)
 }
 
-// Dir returns the moonshine home directory (~/.moonshine).
 func Dir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".moonshine")
+	path := filepath.Join(home, ".moonshine")
+	os.MkdirAll(path, 0o644)
+	return path
 }
 
 // PIDPath returns the daemon PID file path.

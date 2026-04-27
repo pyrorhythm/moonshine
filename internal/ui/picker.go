@@ -37,7 +37,10 @@ func PickSearchResult(results []backend.SearchResult) *backend.SearchResult {
 	if err != nil {
 		return nil
 	}
-	final := result.(pickerModel)
+	final, ok := result.(pickerModel)
+	if !ok {
+		return nil
+	}
 	return final.chosen
 }
 
@@ -55,7 +58,10 @@ func (d searchDelegate) Height() int                             { return 1 }
 func (d searchDelegate) Spacing() int                            { return 0 }
 func (d searchDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 func (d searchDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
-	si := item.(searchItem)
+	si, ok := item.(searchItem)
+	if !ok {
+		return
+	}
 	r := si.r
 
 	cursor := "  "

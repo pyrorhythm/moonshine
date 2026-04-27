@@ -10,6 +10,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const shellBash = "bash"
+
 func hookCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "hook",
@@ -55,7 +57,7 @@ func detectShell() string {
 		case strings.Contains(base, "ion"):
 			return "ion"
 		case strings.Contains(base, "bash"):
-			return "bash"
+			return shellBash
 		}
 	}
 	return "bash"

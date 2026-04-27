@@ -23,10 +23,10 @@ brew:
 
 func TestLoadMoonfile_valid(t *testing.T) {
 	dir := t.TempDir()
-	configPath := writeTmpFile(t, dir, "moonconfig.yml", validConfigYAML)
-	writeTmpFile(t, dir, "moonpackages.yml", validPackagesYAML)
+	configPath := writeTmpFile(t, dir, "config.yml", validConfigYAML)
+	writeTmpFile(t, dir, "packages.yml", validPackagesYAML)
 
-	mf, err := config.LoadMoonfile(configPath)
+	mf, err := config.LoadBundle(configPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -45,11 +45,26 @@ func TestLoadMoonfile_valid(t *testing.T) {
 	}
 }
 
+func TestLoadMoonfile_legacyFilenames(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yml")
+	writeTmpFile(t, dir, "moonconfig.yml", validConfigYAML)
+	writeTmpFile(t, dir, "moonpackages.yml", validPackagesYAML)
+
+	mf, err := config.LoadBundle(configPath)
+	if err != nil {
+		t.Fatalf("unexpected error loading legacy filenames: %v", err)
+	}
+	if len(mf.Packages) != 2 {
+		t.Errorf("packages = %d, want 2", len(mf.Packages))
+	}
+}
+
 func TestLoadMoonfile_defaults(t *testing.T) {
 	dir := t.TempDir()
-	configPath := writeTmpFile(t, dir, "moonconfig.yml", "")
+	configPath := writeTmpFile(t, dir, "config.yml", "")
 
-	mf, err := config.LoadMoonfile(configPath)
+	mf, err := config.LoadBundle(configPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -59,12 +74,15 @@ func TestLoadMoonfile_defaults(t *testing.T) {
 	if mf.LocalTap != "moonshine-local" {
 		t.Errorf("default local_tap = %q", mf.LocalTap)
 	}
+	if len(mf.Backends) == 0 || mf.Backends[0] != "brew" {
+		t.Errorf("default backends = %v, want [brew]", mf.Backends)
+	}
 }
 
 func TestLoadMoonfile_invalidMode(t *testing.T) {
 	dir := t.TempDir()
-	configPath := writeTmpFile(t, dir, "moonconfig.yml", "mode: magic\n")
-	_, err := config.LoadMoonfile(configPath)
+	configPath := writeTmpFile(t, dir, "config.yml", "mode: magic\n")
+	_, err := config.LoadBundle(configPath)
 	if err == nil {
 		t.Fatal("expected error for invalid mode")
 	}
@@ -72,14 +90,14 @@ func TestLoadMoonfile_invalidMode(t *testing.T) {
 
 func TestSaveMoonfileRoundtrip(t *testing.T) {
 	dir := t.TempDir()
-	configPath := writeTmpFile(t, dir, "moonconfig.yml", validConfigYAML)
-	writeTmpFile(t, dir, "moonpackages.yml", validPackagesYAML)
+	configPath := writeTmpFile(t, dir, "config.yml", validConfigYAML)
+	writeTmpFile(t, dir, "packages.yml", validPackagesYAML)
 
-	mf, _ := config.LoadMoonfile(configPath)
-	if err := config.SaveMoonfile(configPath, mf); err != nil {
+	mf, _ := config.LoadBundle(configPath)
+	if err := config.SaveConfig(configPath, mf); err != nil {
 		t.Fatalf("save error: %v", err)
 	}
-	mf2, err := config.LoadMoonfile(configPath)
+	mf2, err := config.LoadBundle(configPath)
 	if err != nil {
 		t.Fatalf("reload error: %v", err)
 	}

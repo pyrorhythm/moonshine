@@ -10,7 +10,6 @@ import (
 	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
-// Banner prints the moonshine brand header.
 func Banner() {
 	fmt.Println(
 		styleBrand.Render("  moonshine ") + styleMuted.Render("declarative package manager"),
@@ -18,22 +17,15 @@ func Banner() {
 	fmt.Println()
 }
 
-// Success prints a success message.
 func Success(msg string) { fmt.Println(styleSuccess.Render("✓ " + msg)) }
-
-// Warn prints a warning message.
-func Warn(msg string) { fmt.Println(styleWarn.Render("⚠ " + msg)) }
-
-// Error prints an error message to stderr.
-func Error(msg string) { fmt.Fprintln(os.Stderr, styleError.Render("✗ "+msg)) }
-
-// Info prints an informational message.
-func Info(msg string) { fmt.Println(styleMuted.Render("  " + msg)) }
+func Warn(msg string)    { fmt.Println(styleWarn.Render("⚠ " + msg)) }
+func Error(msg string)   { fmt.Fprintln(os.Stderr, styleError.Render("✗ "+msg)) }
+func Info(msg string)    { fmt.Println(styleMuted.Render("  " + msg)) }
 
 // PrintDiff renders a DiffResult as a coloured diff to w.
 func PrintDiff(w io.Writer, result reconciler.DiffResult) {
 	if !result.HasChanges() {
-		fmt.Fprintln(w, styleSuccess.Render("Nothing to do — system matches moonfile."))
+		fmt.Fprintln(w, styleSuccess.Render("there is nothing to see ;) your system is up to date"))
 		return
 	}
 	for _, a := range result.Actions {
@@ -52,7 +44,7 @@ func PrintDiff(w io.Writer, result reconciler.DiffResult) {
 			line = fmt.Sprintf("  %s %s%s%s", styleAdd.Render("+"), name, ver, backendLabel)
 		case reconciler.ActionUpgrade:
 			name := styleName.Render(a.Package.Name())
-			from := styleVersion.Render(a.Current.Version)
+			from := styleVersion.Render(a.Current.GetVersion())
 			to := styleVersion.Render(a.Package.Get("version"))
 			line = fmt.Sprintf(
 				"  %s %s %s → %s%s",
@@ -63,8 +55,10 @@ func PrintDiff(w io.Writer, result reconciler.DiffResult) {
 				backendLabel,
 			)
 		case reconciler.ActionUninstall:
-			name := styleName.Render(a.Current.Name)
+			name := styleName.Render(a.Current.GetName())
 			line = fmt.Sprintf("  %s %s%s", styleRemove.Render("-"), name, backendLabel)
+		case reconciler.ActionNone:
+			continue
 		}
 		fmt.Fprintln(w, line)
 	}

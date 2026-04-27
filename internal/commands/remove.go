@@ -2,11 +2,11 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
-	"pyrorhythm.dev/moonshine/internal/packages"
 	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
@@ -18,7 +18,7 @@ func removeCommand() *cli.Command {
 		ArgsUsage: "[backend#]package",
 		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
-				return fmt.Errorf(
+				return errors.New(
 					"package required — format: [backend#]name  e.g. brew#node, go#gopls",
 				)
 			}
@@ -28,7 +28,7 @@ func removeCommand() *cli.Command {
 				return err
 			}
 
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}
@@ -50,7 +50,7 @@ func removeCommand() *cli.Command {
 				)
 			}
 
-			ac.moonfile.Packages = packages.List(updated)
+			ac.moonfile.Packages = updated
 			if err := config.SavePackages(ac.configPath, ac.moonfile.Packages); err != nil {
 				return fmt.Errorf("saving moonpackages.yml: %w", err)
 			}

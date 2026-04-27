@@ -28,9 +28,10 @@ func (k ActionKind) String() string {
 		return "upgrade"
 	case ActionUninstall:
 		return "uninstall"
-	default:
+	case ActionNone:
 		return "none"
 	}
+	return "none"
 }
 
 // PackageAction is one item in the reconciliation plan.
@@ -38,7 +39,7 @@ type PackageAction struct {
 	Kind        ActionKind
 	BackendName string
 	Package     backend.Package
-	Current     *backend.InstalledPackage
+	Current     backend.InstalledPackage // nil if not yet installed
 	Reason      string
 }
 
@@ -70,7 +71,6 @@ func (d DiffResult) ByKind(k ActionKind) []PackageAction {
 
 // Diff computes the actions needed to reconcile current state with the moonfile.
 func Diff(mf *config.Moonfile, current state.SystemState, lf *lockfile.LockFile) DiffResult {
-	// Group desired packages by package_manager.
 	byBackend := make(map[string][]packages.Package)
 	for _, pkg := range mf.Packages {
 		byBackend[pkg.PackageManager] = append(byBackend[pkg.PackageManager], pkg)
@@ -98,44 +98,35 @@ func Diff(mf *config.Moonfile, current state.SystemState, lf *lockfile.LockFile)
 				continue
 			}
 
-			if dp.Pinned() {
-				if !version.Equal(dp.Version(), installed.Version) {
-					cur := installed
-					actions = append(actions, PackageAction{
-						Kind:        ActionUpgrade,
-						BackendName: backendName,
-						Package:     bpkg,
-						Current:     &cur,
-						Reason:      "version mismatch: have " + installed.Version + ", want " + dp.Version(),
-					})
-					continue
-				}
+			if dp.Pinned() && !version.Equal(dp.Version(), installed.GetVersion()) {
+				actions = append(actions, PackageAction{
+					Kind:        ActionUpgrade,
+					BackendName: backendName,
+					Package:     bpkg,
+					Current:     installed,
+					Reason:      "version mismatch: have " + installed.GetVersion() + ", want " + dp.Version(),
+				})
+				continue
 			}
 
-			cur := installed
 			actions = append(actions, PackageAction{
 				Kind:        ActionNone,
 				BackendName: backendName,
 				Package:     bpkg,
-				Current:     &cur,
+				Current:     installed,
 			})
 		}
 
-		// Standalone: flag installed packages not in manifest that moonshine previously installed.
 		if mf.Mode == mode.Standalone {
 			if pm, ok := current[backendName]; ok {
 				for name, inst := range pm {
-					if desiredSet[name] {
+					if desiredSet[name] || !lf.Contains(backendName, name) {
 						continue
 					}
-					if !lf.Contains(backendName, name) {
-						continue
-					}
-					cur := inst
 					actions = append(actions, PackageAction{
 						Kind:        ActionUninstall,
 						BackendName: backendName,
-						Current:     &cur,
+						Current:     inst,
 						Reason:      "not in moonfile",
 					})
 				}

@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"strings"
+	"path/filepath"
+	"slices"
 
 	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
@@ -27,9 +27,9 @@ type appContext struct {
 	dryRun     bool
 }
 
-func loadContext(ctx context.Context, c *cli.Command) (*appContext, error) {
+func loadContext(c *cli.Command) (*appContext, error) {
 	configPath := c.String(configFlag)
-	mf, err := config.LoadMoonfile(configPath)
+	mf, err := config.LoadBundle(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}
@@ -38,7 +38,7 @@ func loadContext(ctx context.Context, c *cli.Command) (*appContext, error) {
 		mf.Moonshine.Mode = mode.OperatingMode(override)
 	}
 
-	lockPath := strings.TrimSuffix(configPath, ".yml") + ".lock"
+	lockPath := filepath.Join(filepath.Dir(configPath), "moonshine.lock")
 	lf, err := lockfile.Load(lockPath)
 	if err != nil {
 		return nil, fmt.Errorf("loading lockfile: %w", err)
@@ -46,29 +46,7 @@ func loadContext(ctx context.Context, c *cli.Command) (*appContext, error) {
 	lf.Mode = string(mf.Mode)
 
 	verbose := c.Bool(verboseFlag)
-	reg := registry.NewRegistry()
-
-	brewB, err := brewbackend.New(mf.LocalTap, verbose)
-	if err == nil {
-		reg.Register(brewB)
-	}
-	cargoB, _ := cargo.New()
-	reg.Register(cargoB)
-	goB, _ := goutil.New()
-	reg.Register(goB)
-	npmB, _ := npm.New()
-	reg.Register(npmB)
-
-	for _, cfg := range mf.Shell {
-		reg.Register(shell.New(shell.BackendConfig{
-			Name:          cfg.Name,
-			List:          cfg.List,
-			Install:       cfg.Install,
-			InstallLatest: cfg.InstallLatest,
-			Uninstall:     cfg.Uninstall,
-			Upgrade:       cfg.Upgrade,
-		}))
-	}
+	reg := buildRegistry(mf, verbose)
 
 	return &appContext{
 		moonfile:   mf,
@@ -81,17 +59,61 @@ func loadContext(ctx context.Context, c *cli.Command) (*appContext, error) {
 	}, nil
 }
 
-func buildDefaultRegistry(verbose bool) (*registry.Registry, error) {
+func buildRegistry(mf *config.Moonfile, verbose bool) *registry.Registry {
 	reg := registry.NewRegistry()
-	brewB, err := brewbackend.New("moonshine-local", verbose)
-	if err == nil {
-		reg.Register(brewB)
+
+	enabled := func(name string) bool {
+		return slices.Contains(mf.Backends, name)
 	}
-	cargoB, _ := cargo.New()
-	reg.Register(cargoB)
-	goB, _ := goutil.New()
-	reg.Register(goB)
-	npmB, _ := npm.New()
-	reg.Register(npmB)
-	return reg, nil
+
+	if enabled("brew") {
+		if b, err := brewbackend.New(mf.LocalTap, verbose); err == nil {
+			reg.Register(b)
+		}
+	}
+	if enabled("cargo") {
+		if b, _ := cargo.New(); b != nil {
+			reg.Register(b)
+		}
+	}
+	if enabled("go") {
+		if b, _ := goutil.New(); b != nil {
+			reg.Register(b)
+		}
+	}
+	if enabled("npm") {
+		if b, _ := npm.New(); b != nil {
+			reg.Register(b)
+		}
+	}
+
+	for _, cfg := range mf.Shell {
+		reg.Register(shell.New(shell.BackendConfig{
+			Name:          cfg.Name,
+			List:          cfg.List,
+			Install:       cfg.Install,
+			InstallLatest: cfg.InstallLatest,
+			Uninstall:     cfg.Uninstall,
+			Upgrade:       cfg.Upgrade,
+		}))
+	}
+
+	return reg
+}
+
+func buildDefaultRegistry(verbose bool) *registry.Registry {
+	reg := registry.NewRegistry()
+	if b, err := brewbackend.New("moonshine-local", verbose); err == nil {
+		reg.Register(b)
+	}
+	if b, _ := cargo.New(); b != nil {
+		reg.Register(b)
+	}
+	if b, _ := goutil.New(); b != nil {
+		reg.Register(b)
+	}
+	if b, _ := npm.New(); b != nil {
+		reg.Register(b)
+	}
+	return reg
 }

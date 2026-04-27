@@ -1,11 +1,9 @@
 package goutil
 
 import (
-	"bufio"
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +16,18 @@ import (
 
 var _ backend.Backend = (*Backend)(nil)
 
+// InstalledPackage is the go-specific installed package record.
+type InstalledPackage struct {
+	Name string
+}
+
+func (p InstalledPackage) GetName() string    { return p.Name }
+func (p InstalledPackage) GetVersion() string { return "" }
+func (p InstalledPackage) GetSource() string  { return "go" }
+
+var _ backend.InstalledPackage = InstalledPackage{}
+
+// Backend implements backend.Backend for go install.
 type Backend struct {
 	goPath string
 	binDir string
@@ -26,10 +36,7 @@ type Backend struct {
 // New returns a go Backend.
 func New() (*Backend, error) {
 	goExec, _ := exec.LookPath("go")
-	return &Backend{
-		goPath: goExec,
-		binDir: goBinDir(),
-	}, nil
+	return &Backend{goPath: goExec, binDir: goBinDir()}, nil
 }
 
 func (b *Backend) Name() string    { return "go" }
@@ -51,26 +58,20 @@ func (b *Backend) ListInstalled(context.Context) ([]backend.InstalledPackage, er
 		if e.IsDir() {
 			continue
 		}
-		pkgs = append(pkgs, backend.InstalledPackage{
-			Name:   e.Name(),
-			Source: "go",
-		})
+		pkgs = append(pkgs, InstalledPackage{Name: e.Name()})
 	}
 	return pkgs, nil
 }
 
 func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
-	target := installTarget(pkg)
-	_, err := b.run(ctx, []string{"install", target}, false)
-	return err
+	return b.run(ctx, []string{"install", installTarget(pkg)})
 }
 
-func (b *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
+func (b *Backend) Uninstall(_ context.Context, pkg backend.Package) error {
 	if b.binDir == "" {
-		return fmt.Errorf("GOPATH bin directory unknown")
+		return errors.New("GOPATH bin directory unknown")
 	}
-	binName := pkg.Name() // last path segment
-	binPath := filepath.Join(b.binDir, binName)
+	binPath := filepath.Join(b.binDir, pkg.Name())
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
 	}
@@ -81,11 +82,9 @@ func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 	if pkg.IsPinned() {
 		return nil
 	}
-	_, err := b.run(ctx, []string{"install", installTarget(pkg)}, false)
-	return err
+	return b.run(ctx, []string{"install", installTarget(pkg)})
 }
 
-// installTarget builds the go install argument: link@version.
 func installTarget(pkg backend.Package) string {
 	link := pkg.Get("link")
 	ver := pkg.Get("version")
@@ -95,24 +94,18 @@ func installTarget(pkg backend.Package) string {
 	return link + "@" + ver
 }
 
-func (b *Backend) run(ctx context.Context, args []string, capture bool) ([]byte, error) {
+func (b *Backend) run(ctx context.Context, args []string) error { //nolint:gosec
 	if b.goPath == "" {
-		return nil, fmt.Errorf("go not found on PATH")
+		return errors.New("go not found on PATH")
 	}
-	var buf bytes.Buffer
 	cmd := exec.CommandContext(ctx, b.goPath, args...)
 	cmd.Env = runenv.Get()
-	log.Printf("env=%+v", cmd.Env)
-	if capture {
-		cmd.Stdout = &buf
-	} else {
-		cmd.Stdout = os.Stdout
-	}
+	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("go %v: %w", args, err)
+		return fmt.Errorf("go %v: %w", args, err)
 	}
-	return buf.Bytes(), nil
+	return nil
 }
 
 func goBinDir() string {
@@ -124,9 +117,7 @@ func goBinDir() string {
 		}
 		gopath = filepath.Join(home, "go")
 	}
-
 	if idx := strings.IndexByte(gopath, ':'); idx != -1 {
-		_ = bufio.NewScanner(nil)
 		gopath = gopath[:idx]
 	}
 	return filepath.Join(gopath, "bin")

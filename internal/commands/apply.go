@@ -12,7 +12,7 @@ func applyCommand() *cli.Command {
 		Name:  "apply",
 		Usage: "reconcile system state with moonpackages",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}

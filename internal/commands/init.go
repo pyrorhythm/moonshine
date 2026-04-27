@@ -17,16 +17,16 @@ import (
 func initCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "init",
-		Usage: "interactively create moonconfig.yml and moonpackages.yml",
+		Usage: "interactively create config.yml and packages.yml",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "output",
 				Aliases: []string{"o"},
 				Value:   defaultConfigPath(),
-				Usage:   "output path for moonconfig.yml",
+				Usage:   "output path for config.yml",
 			},
 		},
-		Action: func(ctx context.Context, c *cli.Command) error {
+		Action: func(_ context.Context, c *cli.Command) error {
 			output := c.String("output")
 
 			if _, err := os.Stat(output); err == nil {
@@ -35,12 +35,12 @@ func initCommand() *cli.Command {
 					output,
 				)
 			}
-			if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
 				return fmt.Errorf("creating config directory: %w", err)
 			}
 
 			ui.Banner()
-			fmt.Println("  Let's create your moonconfig.")
+			fmt.Println("  Let's create your config.")
 			fmt.Println()
 
 			opMode := prompt("Operating mode (standalone/companion)", "standalone")
@@ -56,13 +56,11 @@ func initCommand() *cli.Command {
 			mf.LocalTap = localTap
 			mf.Daemon.Enabled = enableDaemon
 
-			if err := config.SaveMoonfile(output, mf); err != nil {
-				return fmt.Errorf("writing moonconfig: %w", err)
+			if err := config.SaveConfig(output, mf); err != nil {
+				return fmt.Errorf("writing config.yml: %w", err)
 			}
-			ui.Success(fmt.Sprintf("moonconfig.yml written to %s", output))
-			ui.Info(
-				"next: add packages with 'ms add brew#<package>' or edit moonpackages.yml directly",
-			)
+			ui.Success(fmt.Sprintf("config.yml written to %s", output))
+			ui.Info("next: add packages with 'ms add brew#<package>' or edit packages.yml directly")
 			return nil
 		},
 	}

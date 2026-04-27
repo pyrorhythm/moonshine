@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/goccy/go-yaml"
@@ -13,10 +14,11 @@ import (
 // Moonshine holds global moonshine settings.
 type Moonshine struct {
 	Mode     mode.OperatingMode   `yaml:"mode"`
-	LocalTap string               `yaml:"local_tap"`
+	Backends []string             `yaml:"backends"`
 	Daemon   DaemonConfig         `yaml:"daemon"`
-	Hooks    hooks.Hooks          `yaml:"hooks"`
-	Shell    []ShellBackendConfig `yaml:"shell_backends"`
+	LocalTap string               `yaml:"local_tap,omitempty"`
+	Hooks    hooks.Hooks          `yaml:"hooks,omitempty"`
+	Shell    []ShellBackendConfig `yaml:"shell_backends,omitempty"`
 }
 
 func (m *Moonshine) applyDefaults() {
@@ -28,6 +30,9 @@ func (m *Moonshine) applyDefaults() {
 	}
 	if m.Daemon.CheckInterval.Seconds() == 0 {
 		m.Daemon.CheckInterval = 6 * time.Hour
+	}
+	if len(m.Backends) == 0 {
+		m.Backends = []string{"brew"}
 	}
 }
 
@@ -43,15 +48,20 @@ func (m *Moonshine) validate() error {
 	return nil
 }
 
-// Load reads and parses a moonfile.yaml at path.
+// Load reads and parses a config file at path, falling back to the legacy name if needed.
 func Load(path string) (*Moonshine, error) {
 	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		if alt := altConfigPath(path); alt != "" {
+			data, err = os.ReadFile(alt)
+		}
+	}
 	if err != nil {
-		return nil, fmt.Errorf("reading moonfile: %w", err)
+		return nil, fmt.Errorf("reading config: %w", err)
 	}
 	var m Moonshine
 	if err := yaml.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("parsing moonfile: %w", err)
+		return nil, fmt.Errorf("parsing config: %w", err)
 	}
 	m.applyDefaults()
 	if err := m.validate(); err != nil {
@@ -60,30 +70,43 @@ func Load(path string) (*Moonshine, error) {
 	return &m, nil
 }
 
-// Save writes the manifest to path atomically.
+// altConfigPath returns the legacy/alternate config filename for path, or "".
+func altConfigPath(path string) string {
+	dir, base := filepath.Dir(path), filepath.Base(path)
+	switch base {
+	case "config.yml":
+		return filepath.Join(dir, "moonconfig.yml")
+	case "moonconfig.yml":
+		return filepath.Join(dir, "config.yml")
+	}
+	return ""
+}
+
+// Save writes the config to path atomically.
 func Save(path string, m *Moonshine) error {
 	data, err := yaml.Marshal(m)
 	if err != nil {
-		return fmt.Errorf("marshalling moonfile: %w", err)
+		return fmt.Errorf("marshalling config: %w", err)
 	}
-	tmp, err := os.CreateTemp("", "moonfile-*.yaml")
+	tmp, err := os.CreateTemp("", "moonconfig-*.yaml")
 	if err != nil {
 		return err
 	}
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmp.Name())
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
 		return err
 	}
-	tmp.Close()
+	_ = tmp.Close()
 	return os.Rename(tmp.Name(), path)
 }
 
 // New returns a Moonshine populated with sensible defaults.
 func New(opMode string) *Moonshine {
-	m := &Moonshine{
+	return &Moonshine{
 		Mode:     mode.OperatingMode(opMode),
 		LocalTap: "moonshine-local",
+		Backends: []string{"brew"},
 		Daemon: DaemonConfig{
 			Enabled:       false,
 			CheckInterval: 6 * time.Hour,
@@ -91,5 +114,4 @@ func New(opMode string) *Moonshine {
 			Notify:        true,
 		},
 	}
-	return m
 }

@@ -19,12 +19,21 @@ var (
 )
 
 func main() {
-	ctx, cancel :=
-		signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
 
+func run() error {
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGABRT,
+	)
 	defer cancel()
 
-	(&cli.Command{
+	app := &cli.Command{
 		Name:                       "moonshine",
 		EnableShellCompletion:      true,
 		ShellCompletionCommandName: "completion",
@@ -32,11 +41,12 @@ func main() {
 		Version:                    fmt.Sprintf("%s (commit %s, built %s)", version, commit, date),
 		Flags:                      commands.Flags(),
 		Commands:                   commands.Commands(),
-		ExitErrHandler: func(ctx context.Context, c *cli.Command, err error) {
+		ExitErrHandler: func(_ context.Context, c *cli.Command, err error) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "command %s - error: %s", c.Name, err.Error())
 				os.Exit(1)
 			}
 		},
-	}).Run(ctx, os.Args)
+	}
+	return app.Run(ctx, os.Args)
 }

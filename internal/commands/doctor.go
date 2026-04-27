@@ -16,7 +16,7 @@ func doctorCommand() *cli.Command {
 		Name:  "doctor",
 		Usage: "diagnose drift, conflicts, and configuration issues",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}
@@ -74,7 +74,7 @@ func actionPkgName(a reconciler.PackageAction) string {
 		}
 	}
 	if a.Current != nil {
-		return a.Current.Name
+		return a.Current.GetName()
 	}
 	return "?"
 }

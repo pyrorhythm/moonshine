@@ -18,7 +18,7 @@ func tapCommand() *cli.Command {
 				Name:  "init",
 				Usage: "create and register the local tap",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					ac, err := loadContext(ctx, c)
+					ac, err := loadContext(c)
 					if err != nil {
 						return err
 					}
@@ -37,7 +37,7 @@ func tapCommand() *cli.Command {
 				Name:  "status",
 				Usage: "show local tap info",
 				Action: func(ctx context.Context, c *cli.Command) error {
-					ac, err := loadContext(ctx, c)
+					ac, err := loadContext(c)
 					if err != nil {
 						return err
 					}

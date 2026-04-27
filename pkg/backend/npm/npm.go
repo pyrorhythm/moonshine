@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,13 +16,15 @@ import (
 	"pyrorhythm.dev/moonshine/pkg/runenv"
 )
 
+const (
+	toolBun = "bun"
+	toolNpm = "npm"
+)
+
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
 func stripANSI(s string) string { return ansiRe.ReplaceAllString(s, "") }
 
-// stripTreeChars removes Unicode box-drawing prefix characters that bun and npm
-// use in their tree output (├──, └──, │, ─, etc.) and any surrounding whitespace.
-// Box-drawing block: U+2500–U+257F.
 func stripTreeChars(s string) string {
 	return strings.TrimLeftFunc(s, func(r rune) bool {
 		return (r >= 0x2500 && r <= 0x257F) || r == ' ' || r == '\t'
@@ -30,11 +33,22 @@ func stripTreeChars(s string) string {
 
 var _ backend.Backend = (*Backend)(nil)
 
+// InstalledPackage is the npm-specific installed package record.
+type InstalledPackage struct {
+	Name    string
+	Version string
+	Manager string // "npm" or "bun"
+}
+
+func (p InstalledPackage) GetName() string    { return p.Name }
+func (p InstalledPackage) GetVersion() string { return p.Version }
+func (p InstalledPackage) GetSource() string  { return p.Manager }
+
+var _ backend.InstalledPackage = InstalledPackage{}
+
 // Backend implements backend.Backend for global npm/bun installs.
-// installTool is the active tool used for install/uninstall/upgrade.
-// Both bun and npm are queried during ListInstalled (snapshot).
 type Backend struct {
-	installTool string // "bun" or "npm"
+	installTool string
 	bunPath     string
 	npmPath     string
 }
@@ -42,13 +56,13 @@ type Backend struct {
 // New returns a Backend. bun is preferred for management when available.
 func New() (*Backend, error) {
 	b := &Backend{}
-	b.bunPath, _ = exec.LookPath("bun")
-	b.npmPath, _ = exec.LookPath("npm")
+	b.bunPath, _ = exec.LookPath(toolBun)
+	b.npmPath, _ = exec.LookPath(toolNpm)
 	switch {
 	case b.bunPath != "":
-		b.installTool = "bun"
+		b.installTool = toolBun
 	case b.npmPath != "":
-		b.installTool = "npm"
+		b.installTool = toolNpm
 	}
 	return b, nil
 }
@@ -60,43 +74,40 @@ func NewWithTool(tool string) (*Backend, error) {
 		return nil, err
 	}
 	switch tool {
-	case "bun":
+	case toolBun:
 		if b.bunPath == "" {
-			return nil, fmt.Errorf("bun not found on PATH")
+			return nil, errors.New("bun not found on PATH")
 		}
-		b.installTool = "bun"
-	case "npm":
+		b.installTool = toolBun
+	case toolNpm:
 		if b.npmPath == "" {
-			return nil, fmt.Errorf("npm not found on PATH")
+			return nil, errors.New("npm not found on PATH")
 		}
-		b.installTool = "npm"
+		b.installTool = toolNpm
 	default:
 		return nil, fmt.Errorf("unknown js tool %q: must be bun or npm", tool)
 	}
 	return b, nil
 }
 
-// Name always returns "npm" — bun is an implementation detail, not a separate backend.
 func (b *Backend) Name() string    { return "npm" }
 func (b *Backend) Available() bool { return b.bunPath != "" || b.npmPath != "" }
 
-// ListInstalled queries both bun and npm and returns the merged set.
-// This ensures snapshot captures packages managed by either tool.
 func (b *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage, error) {
 	seen := make(map[string]backend.InstalledPackage)
 
 	if b.npmPath != "" {
 		if pkgs, err := b.listNpm(ctx); err == nil {
 			for _, p := range pkgs {
-				seen[p.Name] = p
+				seen[p.GetName()] = p
 			}
 		}
 	}
 	if b.bunPath != "" {
 		if pkgs, err := b.listBun(ctx); err == nil {
 			for _, p := range pkgs {
-				if _, exists := seen[p.Name]; !exists {
-					seen[p.Name] = p
+				if _, exists := seen[p.GetName()]; !exists {
+					seen[p.GetName()] = p
 				}
 			}
 		}
@@ -115,7 +126,7 @@ func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
 		name = name + "@" + pkg.Get("version")
 	}
 	var args []string
-	if b.installTool == "bun" {
+	if b.installTool == toolBun {
 		args = []string{"add", "-g", name}
 	} else {
 		args = []string{"install", "-g", name}
@@ -126,7 +137,7 @@ func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
 
 func (b *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
 	var args []string
-	if b.installTool == "bun" {
+	if b.installTool == toolBun {
 		args = []string{"remove", "-g", pkg.Get("name")}
 	} else {
 		args = []string{"uninstall", "-g", pkg.Get("name")}
@@ -143,14 +154,13 @@ func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 }
 
 func (b *Backend) activePath() string {
-	if b.installTool == "bun" {
+	if b.installTool == toolBun {
 		return b.bunPath
 	}
 	return b.npmPath
 }
 
-// listNpm runs `npm list -g --json --depth=0` and parses the JSON response.
-func (b *Backend) listNpm(ctx context.Context) ([]backend.InstalledPackage, error) {
+func (b *Backend) listNpm(ctx context.Context) ([]InstalledPackage, error) {
 	out, err := b.runTool(ctx, b.npmPath, []string{"list", "-g", "--json", "--depth=0"}, true)
 	if err != nil {
 		return nil, err
@@ -158,8 +168,7 @@ func (b *Backend) listNpm(ctx context.Context) ([]backend.InstalledPackage, erro
 	return parseNpmJSON(out), nil
 }
 
-// listBun runs `bun pm ls -g` and parses the tree output.
-func (b *Backend) listBun(ctx context.Context) ([]backend.InstalledPackage, error) {
+func (b *Backend) listBun(ctx context.Context) ([]InstalledPackage, error) {
 	out, err := b.runTool(ctx, b.bunPath, []string{"pm", "ls", "-g"}, true)
 	if err != nil {
 		return nil, err
@@ -167,38 +176,32 @@ func (b *Backend) listBun(ctx context.Context) ([]backend.InstalledPackage, erro
 	return parseBunList(out), nil
 }
 
-// npmListJSON is the shape of `npm list -g --json --depth=0`.
 type npmListJSON struct {
 	Dependencies map[string]struct {
 		Version string `json:"version"`
 	} `json:"dependencies"`
 }
 
-func parseNpmJSON(data []byte) []backend.InstalledPackage {
+func parseNpmJSON(data []byte) []InstalledPackage {
 	var result npmListJSON
 	if err := json.Unmarshal(data, &result); err != nil {
 		return nil
 	}
-	pkgs := make([]backend.InstalledPackage, 0, len(result.Dependencies))
+	pkgs := make([]InstalledPackage, 0, len(result.Dependencies))
 	for name, dep := range result.Dependencies {
-		pkgs = append(pkgs, backend.InstalledPackage{
-			Name:    name,
-			Version: dep.Version,
-			Source:  "npm",
-		})
+		pkgs = append(pkgs, InstalledPackage{Name: name, Version: dep.Version, Manager: toolNpm})
 	}
 	return pkgs
 }
 
-func parseBunList(data []byte) []backend.InstalledPackage {
-	var pkgs []backend.InstalledPackage
+func parseBunList(data []byte) []InstalledPackage {
+	var pkgs []InstalledPackage
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := stripTreeChars(stripANSI(scanner.Text()))
 		if line == "" {
 			continue
 		}
-		// bun format: "name@version" or "@scope/name@version"
 		lastAt := strings.LastIndex(line, "@")
 		if lastAt <= 0 {
 			continue
@@ -208,37 +211,17 @@ func parseBunList(data []byte) []backend.InstalledPackage {
 		if name == "" || version == "" {
 			continue
 		}
-		pkgs = append(pkgs, backend.InstalledPackage{
-			Name:    name,
-			Version: version,
-			Source:  "npm",
-		})
+		pkgs = append(pkgs, InstalledPackage{Name: name, Version: version, Manager: toolBun})
 	}
 	return pkgs
 }
 
-// Search queries npm for packages matching query using `npm search --json`.
+// Search queries npm for packages matching query.
 func (b *Backend) Search(ctx context.Context, query string) ([]backend.SearchResult, error) {
-	toolPath := b.npmPath
-	if toolPath == "" {
-		toolPath = b.bunPath
-	}
-	if toolPath == "" {
+	if b.npmPath == "" {
 		return nil, nil
 	}
-	var args []string
-	if b.npmPath != "" {
-		args = []string{"search", "--json", query}
-	} else {
-		// bun doesn't have a search command; fall back to npm info for exact match
-		out, err := b.runTool(ctx, b.bunPath, []string{"pm", "ls", "-g"}, true)
-		if err != nil {
-			return nil, nil
-		}
-		_ = out
-		return nil, nil
-	}
-	out, err := b.runTool(ctx, b.npmPath, args, true)
+	out, err := b.runTool(ctx, b.npmPath, []string{"search", "--json", query}, true)
 	if err != nil {
 		return nil, err
 	}
@@ -273,9 +256,9 @@ func (b *Backend) runTool(
 	toolPath string,
 	args []string,
 	capture bool,
-) ([]byte, error) {
+) ([]byte, error) { //nolint:gosec
 	if toolPath == "" {
-		return nil, fmt.Errorf("tool not available")
+		return nil, errors.New("tool not available")
 	}
 	var buf bytes.Buffer
 	cmd := exec.CommandContext(ctx, toolPath, args...)

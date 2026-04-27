@@ -1,11 +1,16 @@
-package brew
+package brew_test
 
 import (
 	"context"
 	"testing"
 
 	"pyrorhythm.dev/moonshine/pkg/backend"
+	"pyrorhythm.dev/moonshine/pkg/backend/brew"
 )
+
+func backendPkg(pm string, meta map[string]string) backend.Package {
+	return backend.Package{PackageManager: pm, Meta: meta}
+}
 
 type recordingRunner struct {
 	installedFormula   string
@@ -13,7 +18,8 @@ type recordingRunner struct {
 	upgradedFormula    string
 }
 
-func (r *recordingRunner) ListInstalled(context.Context) ([]ListEntry, error) {
+func (r *recordingRunner) Leaves(context.Context) ([]string, error) { return nil, nil }
+func (r *recordingRunner) InfoJSON(context.Context, []string) ([]brew.InfoEntry, error) {
 	return nil, nil
 }
 
@@ -26,16 +32,14 @@ func (r *recordingRunner) Uninstall(_ context.Context, formula string) error {
 	r.uninstalledFormula = formula
 	return nil
 }
+func (r *recordingRunner) Extract(context.Context, string, string, string) error { return nil }
+func (r *recordingRunner) TapAdd(context.Context, string) error                  { return nil }
+func (r *recordingRunner) TapCreate(context.Context, string) error               { return nil }
 
-func (r *recordingRunner) Extract(context.Context, string, string, string) error {
-	return nil
-}
-
-func (r *recordingRunner) TapCreate(context.Context, string) error {
-	return nil
-}
-
-func (r *recordingRunner) TapExists(context.Context, string) (bool, error) {
+func (r *recordingRunner) TapExists(
+	context.Context,
+	string,
+) (bool, error) {
 	return false, nil
 }
 
@@ -46,16 +50,9 @@ func (r *recordingRunner) Upgrade(_ context.Context, formula string) error {
 
 func TestInstallUsesTapFormula(t *testing.T) {
 	runner := &recordingRunner{}
-	b := &Backend{runner: runner}
+	b := brew.NewWithRunner(runner, "")
 
-	pkg := backend.Package{
-		PackageManager: "brew",
-		Meta: map[string]string{
-			"name": "foo",
-			"tap":  "acme/tools",
-		},
-	}
-
+	pkg := backendPkg("brew", map[string]string{"name": "foo", "tap": "acme/tools"})
 	if err := b.Install(context.Background(), pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
 	}
@@ -66,17 +63,12 @@ func TestInstallUsesTapFormula(t *testing.T) {
 
 func TestInstallUsesTapVersionedFormulaForPinnedVersion(t *testing.T) {
 	runner := &recordingRunner{}
-	b := &Backend{runner: runner}
+	b := brew.NewWithRunner(runner, "")
 
-	pkg := backend.Package{
-		PackageManager: "brew",
-		Meta: map[string]string{
-			"name":    "foo",
-			"tap":     "acme/tools",
-			"version": "1.2.3",
-		},
-	}
-
+	pkg := backendPkg(
+		"brew",
+		map[string]string{"name": "foo", "tap": "acme/tools", "version": "1.2.3"},
+	)
 	if err := b.Install(context.Background(), pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
 	}
@@ -87,15 +79,9 @@ func TestInstallUsesTapVersionedFormulaForPinnedVersion(t *testing.T) {
 
 func TestUninstallAndUpgradeUseTapFormula(t *testing.T) {
 	runner := &recordingRunner{}
-	b := &Backend{runner: runner}
+	b := brew.NewWithRunner(runner, "")
 
-	pkg := backend.Package{
-		PackageManager: "brew",
-		Meta: map[string]string{
-			"name": "foo",
-			"tap":  "acme/tools",
-		},
-	}
+	pkg := backendPkg("brew", map[string]string{"name": "foo", "tap": "acme/tools"})
 
 	if err := b.Uninstall(context.Background(), pkg); err != nil {
 		t.Fatalf("Uninstall returned error: %v", err)

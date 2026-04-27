@@ -8,7 +8,6 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// moonpackagesYAML is the top-level structure of moonpackages.yml.
 type moonpackagesYAML struct {
 	Brew  []brewPkgYAML  `yaml:"brew,omitempty"`
 	Go    []goPkgYAML    `yaml:"go,omitempty"`
@@ -18,9 +17,7 @@ type moonpackagesYAML struct {
 
 // brewPkgYAML represents one brew entry: a plain string or a struct.
 //
-//	- gcc               → name only
-//	- name: openssl     → with optional version / brew_version / tap
-//	  brew_version: 3
+//nolint:recvcheck
 type brewPkgYAML struct {
 	Name        string
 	Version     string
@@ -47,7 +44,7 @@ func (b *brewPkgYAML) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (b brewPkgYAML) MarshalYAML() (interface{}, error) {
+func (b brewPkgYAML) MarshalYAML() (any, error) {
 	if b.Version == "" && b.BrewVersion == "" && b.Tap == "" {
 		return b.Name, nil
 	}
@@ -57,7 +54,7 @@ func (b brewPkgYAML) MarshalYAML() (interface{}, error) {
 		BrewVersion string `yaml:"brew_version,omitempty"`
 		Tap         string `yaml:"tap,omitempty"`
 	}
-	return raw{b.Name, b.Version, b.BrewVersion, b.Tap}, nil
+	return raw(b), nil
 }
 
 func (b brewPkgYAML) toPackage() Package {
@@ -74,11 +71,9 @@ func (b brewPkgYAML) toPackage() Package {
 	return Package{PackageManager: "brew", Meta: meta}
 }
 
-// goPkgYAML represents one go entry.
+// goPkgYAML represents one go entry: a plain link string or a struct.
 //
-//	- golang.org/x/tools/gopls          → link only
-//	- link: golang.org/x/tools/gopls    → with optional version
-//	  version: latest
+//nolint:recvcheck
 type goPkgYAML struct {
 	Link    string
 	Version string
@@ -101,7 +96,7 @@ func (g *goPkgYAML) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (g goPkgYAML) MarshalYAML() (interface{}, error) {
+func (g goPkgYAML) MarshalYAML() (any, error) {
 	if g.Version == "" {
 		return g.Link, nil
 	}
@@ -109,7 +104,7 @@ func (g goPkgYAML) MarshalYAML() (interface{}, error) {
 		Link    string `yaml:"link"`
 		Version string `yaml:"version,omitempty"`
 	}
-	return raw{g.Link, g.Version}, nil
+	return raw(g), nil
 }
 
 func (g goPkgYAML) toPackage() Package {
@@ -121,6 +116,8 @@ func (g goPkgYAML) toPackage() Package {
 }
 
 // cargoPkgYAML represents one cargo entry.
+//
+//nolint:recvcheck
 type cargoPkgYAML struct {
 	Name    string
 	Version string
@@ -143,7 +140,7 @@ func (c *cargoPkgYAML) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (c cargoPkgYAML) MarshalYAML() (interface{}, error) {
+func (c cargoPkgYAML) MarshalYAML() (any, error) {
 	if c.Version == "" {
 		return c.Name, nil
 	}
@@ -151,7 +148,7 @@ func (c cargoPkgYAML) MarshalYAML() (interface{}, error) {
 		Name    string `yaml:"name"`
 		Version string `yaml:"version,omitempty"`
 	}
-	return raw{c.Name, c.Version}, nil
+	return raw(c), nil
 }
 
 func (c cargoPkgYAML) toPackage() Package {
@@ -163,6 +160,8 @@ func (c cargoPkgYAML) toPackage() Package {
 }
 
 // npmPkgYAML represents one npm entry.
+//
+//nolint:recvcheck
 type npmPkgYAML struct {
 	Name    string
 	Version string
@@ -185,7 +184,7 @@ func (n *npmPkgYAML) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (n npmPkgYAML) MarshalYAML() (interface{}, error) {
+func (n npmPkgYAML) MarshalYAML() (any, error) {
 	if n.Version == "" {
 		return n.Name, nil
 	}
@@ -193,7 +192,7 @@ func (n npmPkgYAML) MarshalYAML() (interface{}, error) {
 		Name    string `yaml:"name"`
 		Version string `yaml:"version,omitempty"`
 	}
-	return raw{n.Name, n.Version}, nil
+	return raw(n), nil
 }
 
 func (n npmPkgYAML) toPackage() Package {
@@ -204,18 +203,18 @@ func (n npmPkgYAML) toPackage() Package {
 	return Package{PackageManager: "npm", Meta: meta}
 }
 
-// LoadMoonpackages reads moonpackages.yml. Returns empty list if the file does not exist.
+// LoadMoonpackages reads packages.yml (or moonpackages.yml). Returns empty list if the file does not exist.
 func LoadMoonpackages(path string) (List, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return List{}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("reading moonpackages.yml: %w", err)
+		return nil, fmt.Errorf("reading packages file: %w", err)
 	}
 	var raw moonpackagesYAML
 	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parsing moonpackages.yml: %w", err)
+		return nil, fmt.Errorf("parsing packages file: %w", err)
 	}
 	var list List
 	for _, e := range raw.Brew {
@@ -241,8 +240,6 @@ func SaveMoonpackages(path string, list List) error {
 		case "brew":
 			name := pkg.Get("name")
 			brewVer := pkg.Get("brew_version")
-			// Names sourced from `brew list` may include the variant suffix (e.g. "openssl@3").
-			// Split into name + brew_version when not already explicit.
 			if brewVer == "" {
 				if idx := strings.LastIndexByte(name, '@'); idx >= 0 {
 					brewVer = name[idx+1:]
@@ -258,39 +255,29 @@ func SaveMoonpackages(path string, list List) error {
 		case "go":
 			link := pkg.Get("link")
 			if link == "" {
-				// Snapshot only knows the binary name; skip until the user fills in the module link.
 				continue
 			}
-			raw.Go = append(raw.Go, goPkgYAML{
-				Link:    link,
-				Version: pkg.Get("version"),
-			})
+			raw.Go = append(raw.Go, goPkgYAML{Link: link, Version: pkg.Get("version")})
 		case "cargo":
-			raw.Cargo = append(raw.Cargo, cargoPkgYAML{
-				Name:    pkg.Get("name"),
-				Version: pkg.Get("version"),
-			})
+			raw.Cargo = append(raw.Cargo, cargoPkgYAML{Name: pkg.Get("name"), Version: pkg.Get("version")})
 		case "npm":
-			raw.Npm = append(raw.Npm, npmPkgYAML{
-				Name:    pkg.Get("name"),
-				Version: pkg.Get("version"),
-			})
+			raw.Npm = append(raw.Npm, npmPkgYAML{Name: pkg.Get("name"), Version: pkg.Get("version")})
 		}
 	}
 
 	data, err := yaml.Marshal(raw)
 	if err != nil {
-		return fmt.Errorf("marshalling moonpackages.yml: %w", err)
+		return fmt.Errorf("marshalling packages file: %w", err)
 	}
 	tmp, err := os.CreateTemp("", "moonpackages-*.yml")
 	if err != nil {
 		return err
 	}
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmp.Name())
+		_ = tmp.Close()
+		_ = os.Remove(tmp.Name())
 		return err
 	}
-	tmp.Close()
+	_ = tmp.Close()
 	return os.Rename(tmp.Name(), path)
 }

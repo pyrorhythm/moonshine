@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -17,11 +18,11 @@ func searchCommand() *cli.Command {
 		ArgsUsage: "<query>",
 		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
-				return fmt.Errorf("query required")
+				return errors.New("query required")
 			}
 			query := c.Args().First()
 
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}

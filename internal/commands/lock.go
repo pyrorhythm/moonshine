@@ -16,7 +16,7 @@ func lockCommand() *cli.Command {
 		Name:  "lock",
 		Usage: "regenerate moonshine.lock from current installed state",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}
@@ -30,8 +30,8 @@ func lockCommand() *cli.Command {
 				if installed, ok := ss.Get(dp.PackageManager, dp.BinaryName()); ok {
 					newLock.Upsert(dp.PackageManager, lockfile.LockedPackage{
 						Name:        dp.BinaryName(),
-						Version:     installed.Version,
-						Source:      installed.Source,
+						Version:     installed.GetVersion(),
+						Source:      installed.GetSource(),
 						InstalledAt: time.Now().UTC(),
 					})
 				}

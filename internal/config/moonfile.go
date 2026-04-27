@@ -2,49 +2,50 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"pyrorhythm.dev/moonshine/internal/packages"
 )
 
-// Moonfile is the combined view of moonconfig.yml + moonpackages.
+// Moonfile bundles the global config with the package list.
 type Moonfile struct {
 	Moonshine
+
 	Packages packages.List
 }
 
-// packagesPath derives the moonpackages.yml path from the moonconfig.yml path.
+// packagesPath returns the packages file path, preferring packages.yml over the legacy name.
 func packagesPath(configPath string) string {
-	return filepath.Join(filepath.Dir(configPath), "moonpackages.yml")
+	dir := filepath.Dir(configPath)
+	preferred := filepath.Join(dir, "packages.yml")
+	if _, err := os.Stat(preferred); err == nil {
+		return preferred
+	}
+	return filepath.Join(dir, "moonpackages.yml")
 }
 
-// LoadMoonfile reads moonconfig.yml at configPath and moonpackages from the same directory.
-func LoadMoonfile(configPath string) (*Moonfile, error) {
+// LoadBundle loads config.yml (or moonconfig.yml) plus the adjacent packages file.
+func LoadBundle(configPath string) (*Moonfile, error) {
 	cfg, err := Load(configPath)
 	if err != nil {
 		return nil, err
 	}
 	pkgs, err := packages.LoadMoonpackages(packagesPath(configPath))
 	if err != nil {
-		return nil, fmt.Errorf("loading moonpackages: %w", err)
+		return nil, fmt.Errorf("loading packages: %w", err)
 	}
 	return &Moonfile{Moonshine: *cfg, Packages: pkgs}, nil
 }
 
-// SaveMoonfile writes moonconfig.yml to configPath and moonpackages to the same directory.
-func SaveMoonfile(configPath string, mf *Moonfile) error {
-	if err := Save(configPath, &mf.Moonshine); err != nil {
-		return err
-	}
-	return packages.SaveMoonpackages(packagesPath(configPath), mf.Packages)
+func SaveConfig(configPath string, mf *Moonfile) error {
+	return Save(configPath, &mf.Moonshine)
 }
 
-// SavePackages writes only the moonpackages file for the given config path.
 func SavePackages(configPath string, list packages.List) error {
 	return packages.SaveMoonpackages(packagesPath(configPath), list)
 }
 
-// NewMoonfile returns a Moonfile with sensible defaults and the given operating mode.
 func NewMoonfile(opMode string) *Moonfile {
 	return &Moonfile{
 		Moonshine: *New(opMode),

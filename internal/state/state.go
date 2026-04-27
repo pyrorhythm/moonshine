@@ -12,7 +12,6 @@ import (
 type PackageMap map[string]backend.InstalledPackage
 
 // SystemState is a snapshot of all installed packages across every backend.
-// Keyed by backend name → PackageMap.
 type SystemState map[string]PackageMap
 
 // Snapshot queries every available backend and returns the combined state.
@@ -29,7 +28,7 @@ func Snapshot(ctx context.Context, reg *registry.Registry) (SystemState, error) 
 		}
 		pm := make(PackageMap, len(pkgs))
 		for _, p := range pkgs {
-			pm[p.Name] = p
+			pm[p.GetName()] = p
 		}
 		ss[b.Name()] = pm
 	}
@@ -40,7 +39,7 @@ func Snapshot(ctx context.Context, reg *registry.Registry) (SystemState, error) 
 func (ss SystemState) Get(backendName, name string) (backend.InstalledPackage, bool) {
 	pm, ok := ss[backendName]
 	if !ok {
-		return backend.InstalledPackage{}, false
+		return nil, false
 	}
 	pkg, ok := pm[name]
 	return pkg, ok

@@ -3,14 +3,12 @@ package commands
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
-	"time"
+	"path/filepath"
 
 	"github.com/urfave/cli/v3"
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/lockfile"
-	"pyrorhythm.dev/moonshine/internal/packages"
+	"pyrorhythm.dev/moonshine/internal/snapshot"
 	"pyrorhythm.dev/moonshine/internal/state"
 	"pyrorhythm.dev/moonshine/internal/ui"
 )
@@ -18,74 +16,70 @@ import (
 func snapshotCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "snapshot",
-		Usage: "capture current installed packages into moonpackages.yml (companion bootstrap)",
+		Usage: "capture current installed packages into packages.yml",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "output",
 				Aliases: []string{"o"},
 				Value:   defaultConfigPath(),
-				Usage:   "output moonconfig.yml path (moonpackages.yml + .lock written alongside)",
+				Usage:   "output config.yml path (packages.yml + .lock written alongside)",
 			},
-			&cli.StringFlag{
+			&cli.StringSliceFlag{
 				Name:    "backend",
 				Aliases: []string{"b"},
-				Usage:   "snapshot only this backend",
+				Usage:   "snapshot only these backends",
+			},
+			&cli.BoolFlag{
+				Name:    "overwrite-config",
+				Usage:   "overwrite existing config",
+				Aliases: []string{"f", "overwrite"},
+				Value:   false,
 			},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
 			output := c.String("output")
-			backendFilter := c.String("backend")
+			backendFilter := c.StringSlice("backend")
 
 			mf := config.NewMoonfile("companion")
-			reg, err := buildDefaultRegistry(false)
-			if err != nil {
-				return err
-			}
+			reg := buildDefaultRegistry(false)
 
 			ss, err := state.Snapshot(ctx, reg)
 			if err != nil {
 				return fmt.Errorf("snapshot: %w", err)
 			}
 
-			// Lockfile records installed versions; moonpackages.yml only holds names.
-			// This way packages float to latest on install, and the lock preserves what was
-			// installed at snapshot time without pinning the moonpackages declaration.
-			lockPath := strings.TrimSuffix(output, ".yml") + ".lock"
-			lf := lockfile.New("companion")
+			lockPath := filepath.Join(filepath.Dir(output), "moonshine.lock")
 
-			for backendName, pm := range ss {
-				if backendFilter != "" && backendName != backendFilter {
-					continue
+			res := snapshot.Capture(ctx, ss, backendFilter)
+
+			mf.Packages = res.Packages
+			lf := res.Lockfile
+
+			if c.Bool("overwrite-config") {
+				if err := config.SaveConfig(output, mf); err != nil {
+					return fmt.Errorf("writing moonconfig: %w", err)
 				}
-				for name, installed := range pm {
-					// Moonpackages entry: name only, no version pin.
-					mf.Packages = append(mf.Packages, packages.Package{
-						PackageManager: backendName,
-						Meta:           map[string]string{"name": name},
-					})
-					// Lockfile entry: records the version present at snapshot time.
-					lf.Upsert(backendName, lockfile.LockedPackage{
-						Name:        name,
-						Version:     installed.Version,
-						Source:      installed.Source,
-						InstalledAt: time.Now().UTC(),
-					})
-				}
+
+				ui.Success(
+					fmt.Sprintf("overwritten config at %s", output),
+				)
 			}
 
-			if _, err := os.Stat(output); err == nil {
-				ui.Warn(fmt.Sprintf("%s already exists; overwrite? (ctrl-c to abort)", output))
+			if err := config.SavePackages(output, mf.Packages); err != nil {
+				return fmt.Errorf("writing packages: %w", err)
 			}
 
-			if err := config.SaveMoonfile(output, mf); err != nil {
-				return fmt.Errorf("writing moonconfig: %w", err)
-			}
 			if err := lockfile.Save(lockPath, lf); err != nil {
 				return fmt.Errorf("writing lockfile: %w", err)
 			}
+
 			ui.Success(
-				fmt.Sprintf("snapshot written to %s, moonpackages.yml, and %s", output, lockPath),
+				fmt.Sprintf(
+					"snapshot written to moonpackages.yml and %s",
+					filepath.Base(lockPath),
+				),
 			)
+
 			return nil
 		},
 	}

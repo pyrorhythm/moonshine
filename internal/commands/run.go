@@ -19,11 +19,11 @@ func defaultConfigPath() string {
 	if xdg == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "moonconfig.yml"
+			return "config.yml"
 		}
 		xdg = filepath.Join(home, ".config")
 	}
-	return filepath.Join(xdg, "moonshine", "moonconfig.yml")
+	return filepath.Join(xdg, "moonshine", "config.yml")
 }
 
 func Commands() []*cli.Command {
@@ -51,7 +51,7 @@ func Flags() []cli.Flag {
 			Name:    configFlag,
 			Aliases: []string{"c"},
 			Value:   defaultConfigPath(),
-			Usage:   "path to moonconfig.yml",
+			Usage:   "path to config.yml",
 			Sources: cli.EnvVars("MOONCONFIG"),
 		},
 		&cli.BoolFlag{Name: verboseFlag, Usage: "verbose output"},

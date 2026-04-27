@@ -7,7 +7,6 @@ import (
 )
 
 // Hooks defines shell scripts to run at lifecycle points.
-// Empty strings are silently skipped.
 type Hooks struct {
 	PreApply        string `yaml:"pre_apply"`
 	PostApply       string `yaml:"post_apply"`
@@ -29,8 +28,6 @@ type Env struct {
 }
 
 // Run executes script via $SHELL -c, streaming stdout/stderr to the terminal.
-// A non-zero exit code returns an error, aborting the calling operation.
-// If script is empty, Run is a no-op.
 func Run(ctx context.Context, script string, env Env) error {
 	if script == "" {
 		return nil

@@ -9,8 +9,6 @@ import (
 )
 
 // Backend implements backend.Backend for Homebrew.
-// runner handles all CLI operations (install, uninstall, list, etc.).
-// api handles metadata queries against formulae.brew.sh.
 type Backend struct {
 	runner   IRunner
 	api      *apiClient
@@ -27,7 +25,6 @@ func New(localTap string, verbose bool) (*Backend, error) {
 }
 
 // NewWithRunner creates a Backend with a custom runner (for testing).
-// api is set to the real client; pass a nil api to disable network calls in tests.
 func NewWithRunner(r IRunner, localTap string) *Backend {
 	return &Backend{runner: r, api: newAPIClient(), localTap: localTap}
 }
@@ -40,15 +37,39 @@ func (b *Backend) Available() bool {
 }
 
 func (b *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage, error) {
-	entries, err := b.runner.ListInstalled(ctx)
+	names, err := b.runner.Leaves(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]backend.InstalledPackage, len(entries))
-	for i, e := range entries {
-		out[i] = backend.InstalledPackage{Name: e.Name, Version: e.Version, Source: "brew"}
+	if len(names) == 0 {
+		return nil, nil
 	}
-	return out, nil
+	infos, err := b.runner.InfoJSON(ctx, names)
+	if err != nil {
+		pkgs := make([]backend.InstalledPackage, len(names))
+		for i, name := range names {
+			pkgs[i] = InstalledPackage{Name: name}
+		}
+		return pkgs, nil
+	}
+	byName := make(map[string]InfoEntry, len(infos))
+	for _, info := range infos {
+		byName[info.FullName] = info
+		byName[info.Name] = info // fallback
+	}
+	pkgs := make([]backend.InstalledPackage, 0, len(names))
+	for _, name := range names {
+		pkg := InstalledPackage{Name: name}
+		if info, ok := byName[name]; ok {
+			pkg.Description = info.Desc
+			pkg.Tap = info.Tap
+			if len(info.Installed) > 0 {
+				pkg.Version = info.Installed[0].Version
+			}
+		}
+		pkgs = append(pkgs, pkg)
+	}
+	return pkgs, nil
 }
 
 func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
@@ -72,7 +93,6 @@ func (b *Backend) Search(ctx context.Context, query string) ([]backend.SearchRes
 	return b.api.Search(ctx, query)
 }
 
-// formulaBase returns the base formula name, incorporating brew_version variant if set.
 func formulaBase(pkg backend.Package) string {
 	name := pkg.Get("name")
 	if bv := pkg.Get("brew_version"); bv != "" {
@@ -89,30 +109,22 @@ func formulaRef(pkg backend.Package) string {
 	return base
 }
 
-// resolveFormula returns the formula string to pass to `brew install`.
-// tap overrides auto-resolution; pinned version triggers a versioned-formula
-// check via the API, falling back to brew-extract if not found publicly.
 func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (string, error) {
 	base := formulaBase(pkg)
 	version := pkg.Get("version")
 	tap := pkg.Get("tap")
 
 	if tap != "" {
-		if version != "" {
-			return tap + "/" + base + "@" + version, nil
-		}
-		return tap + "/" + base, nil
+		return b.resolveTap(ctx, tap, version, base)
 	}
+
 	if version == "" {
 		return base, nil
 	}
 
-	// Pinned: prefer an existing versioned formula (e.g. openssl@3.1.0) before
-	// falling back to brew-extract into a local tap.
 	candidate := base + "@" + version
 	exists, err := b.api.PackageExists(ctx, candidate)
 	if err != nil && !errors.Is(err, errNotFound) {
-		// Network error — skip the check and fall through to extract.
 		exists = false
 	}
 	if exists {
@@ -128,16 +140,24 @@ func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (stri
 	return b.localTap + "/" + candidate, nil
 }
 
-// InstalledVersion returns the installed version of name, or "" if not installed.
-func (b *Backend) InstalledVersion(ctx context.Context, name string) (string, error) {
-	entries, err := b.runner.ListInstalled(ctx)
+func (b *Backend) resolveTap(
+	ctx context.Context,
+	tap string,
+	version string,
+	base string,
+) (string, error) {
+	exists, err := b.runner.TapExists(ctx, tap)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("checking tap %q: %w", tap, err)
 	}
-	for _, e := range entries {
-		if e.Name == name {
-			return e.Version, nil
+	if !exists {
+		if err := b.runner.TapAdd(ctx, tap); err != nil {
+			return "", fmt.Errorf("adding tap %q: %w", tap, err)
 		}
 	}
-	return "", nil
+
+	if version != "" {
+		return tap + "/" + base + "@" + version, nil
+	}
+	return tap + "/" + base, nil
 }

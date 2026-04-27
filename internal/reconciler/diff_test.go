@@ -27,12 +27,12 @@ func makeMoonfile(opMode mode.OperatingMode, pkgs packages.List) *config.Moonfil
 	}
 }
 
-func makeState(backendName string, pkgs ...backend.InstalledPackage) state.SystemState {
+func makeState(pkgs ...backend.SimplePackage) state.SystemState {
 	pm := make(state.PackageMap)
 	for _, p := range pkgs {
-		pm[p.Name] = p
+		pm[p.GetName()] = p
 	}
-	return state.SystemState{backendName: pm}
+	return state.SystemState{"brew": pm}
 }
 
 func TestDiff_install(t *testing.T) {
@@ -52,7 +52,7 @@ func TestDiff_install(t *testing.T) {
 
 func TestDiff_alreadyInstalled(t *testing.T) {
 	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("ripgrep")})
-	ss := makeState("brew", backend.InstalledPackage{Name: "ripgrep", Version: "14.0.0"})
+	ss := makeState(backend.SimplePackage{Name: "ripgrep", Version: "14.0.0"})
 	lf := lockfile.New(string(mode.Standalone))
 
 	result := reconciler.Diff(mf, ss, lf)
@@ -63,7 +63,7 @@ func TestDiff_alreadyInstalled(t *testing.T) {
 
 func TestDiff_versionMismatch(t *testing.T) {
 	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("git", "version", "2.41.0")})
-	ss := makeState("brew", backend.InstalledPackage{Name: "git", Version: "2.39.0"})
+	ss := makeState(backend.SimplePackage{Name: "git", Version: "2.39.0"})
 	lf := lockfile.New(string(mode.Standalone))
 
 	result := reconciler.Diff(mf, ss, lf)
@@ -78,7 +78,7 @@ func TestDiff_versionMismatch(t *testing.T) {
 
 func TestDiff_versionMatch_bottleRevision(t *testing.T) {
 	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("git", "version", "2.41.0")})
-	ss := makeState("brew", backend.InstalledPackage{Name: "git", Version: "2.41.0_1"})
+	ss := makeState(backend.SimplePackage{Name: "git", Version: "2.41.0_1"})
 	lf := lockfile.New(string(mode.Standalone))
 
 	result := reconciler.Diff(mf, ss, lf)
@@ -89,9 +89,9 @@ func TestDiff_versionMatch_bottleRevision(t *testing.T) {
 
 func TestDiff_uninstallStandalone(t *testing.T) {
 	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("ripgrep")})
-	ss := makeState("brew",
-		backend.InstalledPackage{Name: "ripgrep", Version: "14.0.0"},
-		backend.InstalledPackage{Name: "bat", Version: "0.24.0"},
+	ss := makeState(
+		backend.SimplePackage{Name: "ripgrep", Version: "14.0.0"},
+		backend.SimplePackage{Name: "bat", Version: "0.24.0"},
 	)
 	lf := lockfile.New(string(mode.Standalone))
 	lf.Upsert("brew", lockfile.LockedPackage{Name: "bat", Version: "0.24.0"})
@@ -101,38 +101,36 @@ func TestDiff_uninstallStandalone(t *testing.T) {
 	if len(uninstalls) != 1 {
 		t.Fatalf("expected 1 uninstall, got %d", len(uninstalls))
 	}
-	if uninstalls[0].Current.Name != "bat" {
-		t.Errorf("expected bat, got %q", uninstalls[0].Current.Name)
+	if uninstalls[0].Current.GetName() != "bat" {
+		t.Errorf("expected bat, got %q", uninstalls[0].Current.GetName())
 	}
 }
 
 func TestDiff_noUninstallCompanion(t *testing.T) {
 	mf := makeMoonfile(mode.Companion, packages.List{brewPkg("ripgrep")})
-	ss := makeState("brew",
-		backend.InstalledPackage{Name: "ripgrep", Version: "14.0.0"},
-		backend.InstalledPackage{Name: "bat", Version: "0.24.0"},
+	ss := makeState(
+		backend.SimplePackage{Name: "ripgrep", Version: "14.0.0"},
+		backend.SimplePackage{Name: "bat", Version: "0.24.0"},
 	)
 	lf := lockfile.New(string(mode.Companion))
 	lf.Upsert("brew", lockfile.LockedPackage{Name: "bat"})
 
 	result := reconciler.Diff(mf, ss, lf)
-	uninstalls := result.ByKind(reconciler.ActionUninstall)
-	if len(uninstalls) != 0 {
-		t.Errorf("companion mode must not uninstall packages, got %d uninstalls", len(uninstalls))
+	if len(result.ByKind(reconciler.ActionUninstall)) != 0 {
+		t.Error("companion mode must not uninstall packages")
 	}
 }
 
 func TestDiff_noUninstallNotOurs(t *testing.T) {
 	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("ripgrep")})
-	ss := makeState("brew",
-		backend.InstalledPackage{Name: "ripgrep", Version: "14.0.0"},
-		backend.InstalledPackage{Name: "bat", Version: "0.24.0"},
+	ss := makeState(
+		backend.SimplePackage{Name: "ripgrep", Version: "14.0.0"},
+		backend.SimplePackage{Name: "bat", Version: "0.24.0"},
 	)
 	lf := lockfile.New(string(mode.Standalone))
 
 	result := reconciler.Diff(mf, ss, lf)
-	uninstalls := result.ByKind(reconciler.ActionUninstall)
-	if len(uninstalls) != 0 {
-		t.Errorf("should not uninstall packages moonshine didn't install, got %d", len(uninstalls))
+	if len(result.ByKind(reconciler.ActionUninstall)) != 0 {
+		t.Error("should not uninstall packages moonshine didn't install")
 	}
 }

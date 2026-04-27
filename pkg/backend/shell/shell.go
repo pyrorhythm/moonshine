@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,6 +26,20 @@ type BackendConfig struct {
 	Upgrade       string `yaml:"upgrade"`
 }
 
+// InstalledPackage is the shell-backend-specific installed package record.
+type InstalledPackage struct {
+	Name    string
+	Version string
+	Backend string
+}
+
+func (p InstalledPackage) GetName() string    { return p.Name }
+func (p InstalledPackage) GetVersion() string { return p.Version }
+func (p InstalledPackage) GetSource() string  { return p.Backend }
+
+var _ backend.InstalledPackage = InstalledPackage{}
+
+// Backend implements backend.Backend via user-defined shell commands.
 type Backend struct {
 	config BackendConfig
 }
@@ -37,7 +52,6 @@ func New(cfg BackendConfig) *Backend {
 func (s *Backend) Name() string    { return s.config.Name }
 func (s *Backend) Available() bool { return true }
 
-// ListInstalled runs the list command and parses "name version" lines.
 func (s *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage, error) {
 	out, err := s.plainRun(ctx, s.config.List)
 	if err != nil {
@@ -51,7 +65,7 @@ func (s *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage
 			continue
 		}
 		fields := strings.Fields(line)
-		pkg := backend.InstalledPackage{Name: fields[0], Source: s.config.Name}
+		pkg := InstalledPackage{Name: fields[0], Backend: s.config.Name}
 		if len(fields) >= 2 {
 			pkg.Version = fields[1]
 		}
@@ -65,13 +79,11 @@ func (s *Backend) Install(ctx context.Context, pkg backend.Package) error {
 	if !pkg.IsPinned() && s.config.InstallLatest != "" {
 		tmpl = s.config.InstallLatest
 	}
-	_, err := s.run(ctx, tmpl, pkg)
-	return err
+	return s.run(ctx, tmpl, pkg)
 }
 
 func (s *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
-	_, err := s.run(ctx, s.config.Uninstall, pkg)
-	return err
+	return s.run(ctx, s.config.Uninstall, pkg)
 }
 
 func (s *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
@@ -79,68 +91,56 @@ func (s *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
 	if tmpl == "" {
 		tmpl = s.config.InstallLatest
 	}
-	_, err := s.run(ctx, tmpl, pkg)
-	return err
+	return s.run(ctx, tmpl, pkg)
 }
 
-// templateData exposes package fields to shell templates.
 type templateData struct {
 	Name    string
 	Version string
 	Meta    map[string]string
 }
 
-func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) ([]byte, error) {
+func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) error { //nolint:gosec
 	if toRun == "" {
-		return nil, fmt.Errorf("backend %q: command template is empty", s.config.Name)
+		return fmt.Errorf("backend %q: command template is empty", s.config.Name)
 	}
-
 	tmpl, err := template.New(s.config.Name).Option("missingkey=error").Parse(toRun)
 	if err != nil {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"backend %q: failed to parse cmd tmpl (%s): %w",
 			s.config.Name,
 			toRun,
 			err,
 		)
 	}
-
-	data := templateData{
-		Name:    pkg.Get("name"),
-		Version: pkg.Get("version"),
-		Meta:    pkg.Meta,
-	}
-
+	data := templateData{Name: pkg.Get("name"), Version: pkg.Get("version"), Meta: pkg.Meta}
 	var buf bytes.Buffer
 	if err = tmpl.Execute(&buf, data); err != nil {
-		return nil, fmt.Errorf("failed to execute cmd tmpl: %w", err)
+		return fmt.Errorf("failed to execute cmd tmpl: %w", err)
 	}
-
-	script := buf.String()
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "sh"
 	}
-	buf.Reset()
-	execCmd := exec.CommandContext(ctx, shell, "-c", script)
-	execCmd.Stdout = &buf
+	execCmd := exec.CommandContext(ctx, shell, "-c", buf.String()) //nolint:gosec
+	execCmd.Stdout = os.Stdout
 	execCmd.Stderr = os.Stderr
 	if err = execCmd.Run(); err != nil {
-		return nil, fmt.Errorf("backend %q: %w", s.config.Name, err)
+		return fmt.Errorf("backend %q: %w", s.config.Name, err)
 	}
-	return buf.Bytes(), nil
+	return nil
 }
 
-func (s *Backend) plainRun(ctx context.Context, cmd string) ([]byte, error) {
+func (s *Backend) plainRun(ctx context.Context, cmd string) ([]byte, error) { //nolint:gosec
 	if cmd == "" {
-		return nil, fmt.Errorf("backend %q: command is empty", s.config.Name)
+		return nil, errors.New("backend " + s.config.Name + ": command is empty")
 	}
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "sh"
 	}
 	var buf bytes.Buffer
-	execCmd := exec.CommandContext(ctx, shell, "-c", cmd)
+	execCmd := exec.CommandContext(ctx, shell, "-c", cmd) //nolint:gosec
 	execCmd.Stdout = &buf
 	execCmd.Stderr = os.Stderr
 	if err := execCmd.Run(); err != nil {

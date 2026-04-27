@@ -1,8 +1,3 @@
-// Package runenv provides the user's login shell environment for subprocesses.
-// When moonshine runs as a daemon its inherited environment may be stripped of
-// PATH additions, PKG_CONFIG_PATH, LIBRARY_PATH, etc. that compilers need.
-// Backends that invoke compilers (cargo, go install) should use Get() so the
-// spawned process sees the same environment the user's shell would.
 package runenv
 
 import (

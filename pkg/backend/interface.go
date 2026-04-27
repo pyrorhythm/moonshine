@@ -5,12 +5,25 @@ import (
 	"strings"
 )
 
-// InstalledPackage represents a package currently present on the system.
-type InstalledPackage struct {
+// InstalledPackage is the common interface for packages currently present on the system.
+// Each backend provides a concrete type with backend-specific metadata.
+type InstalledPackage interface {
+	GetName() string
+	GetVersion() string
+	GetSource() string
+}
+
+// SimplePackage is a generic InstalledPackage used in tests and
+// contexts where backend-specific information is not needed.
+type SimplePackage struct {
 	Name    string
 	Version string
 	Source  string
 }
+
+func (p SimplePackage) GetName() string    { return p.Name }
+func (p SimplePackage) GetVersion() string { return p.Version }
+func (p SimplePackage) GetSource() string  { return p.Source }
 
 // Package is the desired state passed to backend operations.
 // PackageManager identifies the backend; Meta holds backend-specific metadata.
@@ -19,15 +32,10 @@ type Package struct {
 	Meta           map[string]string
 }
 
-// Get returns a metadata value.
 func (p Package) Get(key string) string { return p.Meta[key] }
 
-// IsPinned reports whether a specific version was requested.
 func (p Package) IsPinned() bool { return p.Meta["version"] != "" }
 
-// Name returns the binary/formula name used to identify this package.
-// For brew packages with brew_version set this is "name@brew_version".
-// For go packages this is the last path segment of the install link.
 func (p Package) Name() string {
 	switch p.PackageManager {
 	case "brew":
@@ -59,22 +67,10 @@ type Searcher interface {
 
 // Backend is implemented by every package manager integration.
 type Backend interface {
-	// Name returns the lowercase identifier for this backend, e.g. "brew".
 	Name() string
-
-	// Available reports whether the underlying tool is installed and on PATH.
 	Available() bool
-
-	// ListInstalled returns all packages currently managed by this backend.
 	ListInstalled(ctx context.Context) ([]InstalledPackage, error)
-
-	// Install installs or upgrades pkg to the requested version (or latest).
 	Install(ctx context.Context, pkg Package) error
-
-	// Uninstall removes pkg from the system.
 	Uninstall(ctx context.Context, pkg Package) error
-
-	// Upgrade upgrades pkg to the latest available version.
-	// For pinned packages this is a no-op; the reconciler handles version changes via Install.
 	Upgrade(ctx context.Context, pkg Package) error
 }

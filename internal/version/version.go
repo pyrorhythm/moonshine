@@ -32,10 +32,7 @@ func Compare(a, b string) int {
 	}
 	partsA := strings.Split(a, ".")
 	partsB := strings.Split(b, ".")
-	maxLen := len(partsA)
-	if len(partsB) > maxLen {
-		maxLen = len(partsB)
-	}
+	maxLen := max(len(partsA), len(partsB))
 	for i := range maxLen {
 		na := partInt(partsA, i)
 		nb := partInt(partsB, i)

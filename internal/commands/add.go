@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/urfave/cli/v3"
@@ -17,7 +18,7 @@ func addCommand() *cli.Command {
 		ArgsUsage: "[backend#]package[@version]",
 		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
-				return fmt.Errorf(
+				return errors.New(
 					"package required — format: [backend#]name[@version]  e.g. brew#node@22, go#golang.org/x/tools/gopls",
 				)
 			}
@@ -27,7 +28,7 @@ func addCommand() *cli.Command {
 				return err
 			}
 
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}
@@ -47,13 +48,8 @@ func addCommand() *cli.Command {
 				return fmt.Errorf("unknown backend %q", ref.backend)
 			}
 
-			found, err := searchBackend(ctx, c, b, ref.backend, ref.name)
-			if err != nil {
-				return err
-			}
-
-			if found {
-				return installAndAdd(ctx, c, ac, b, ref)
+			if searchBackend(ctx, b, ref.backend, ref.name) {
+				return installAndAdd(ctx, ac, b, ref)
 			}
 
 			// Not found in preferred backend — search all others.
@@ -97,35 +93,43 @@ func addCommand() *cli.Command {
 				version: ref.version,
 			}
 			selectedB, _ := ac.registry.Get(chosen.Backend)
-			return installAndAdd(ctx, c, ac, selectedB, selectedRef)
+			return installAndAdd(ctx, ac, selectedB, selectedRef)
 		},
 	}
 }
 
 // searchBackend checks if name exists in b. Returns true if found or if b
 // doesn't implement Searcher (optimistic — let install fail naturally).
-func searchBackend(ctx context.Context, c *cli.Command, b backend.Backend, backendName, name string) (bool, error) {
+func searchBackend(
+	ctx context.Context,
+	b backend.Backend,
+	backendName, name string,
+) bool {
 	s, ok := b.(backend.Searcher)
 	if !ok {
-		return true, nil
+		return true
 	}
 	ui.Info(fmt.Sprintf("searching %s for %q...", backendName, name))
 	results, err := s.Search(ctx, name)
 	if err != nil {
-		// Search failure is non-fatal — optimistically proceed.
 		ui.Warn(fmt.Sprintf("search error: %s", err))
-		return true, nil
+		return true
 	}
 	for _, r := range results {
 		if r.Name == name {
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // installAndAdd installs pkg via b then appends it to moonpackages.yml.
-func installAndAdd(ctx context.Context, c *cli.Command, ac *appContext, b backend.Backend, ref packageRef) error {
+func installAndAdd(
+	ctx context.Context,
+	ac *appContext,
+	b backend.Backend,
+	ref packageRef,
+) error {
 	pkg := refToPackage(ref)
 	bpkg := backend.Package{PackageManager: pkg.PackageManager, Meta: pkg.Meta}
 

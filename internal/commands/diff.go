@@ -16,7 +16,7 @@ func diffCommand() *cli.Command {
 		Name:  "diff",
 		Usage: "show what apply would change",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}

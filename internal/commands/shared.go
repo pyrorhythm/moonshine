@@ -39,7 +39,7 @@ func applyAC(ctx context.Context, ac *appContext) error {
 		Hooks:   ac.moonfile.Hooks,
 		Mode:    string(ac.moonfile.Mode),
 	}
-	if err := reconciler.Apply(ctx, plan, ac.registry, ac.moonfile, ac.lock, opts); err != nil {
+	if err := reconciler.Apply(ctx, plan, ac.registry, ac.lock, opts); err != nil {
 		return err
 	}
 
@@ -54,7 +54,7 @@ func applyAC(ctx context.Context, ac *appContext) error {
 // packageRef is the parsed result of a [backend#]name[@version] argument.
 type packageRef struct {
 	backend string
-	name    string // binary name or go link
+	name    string
 	version string
 }
 
@@ -84,18 +84,22 @@ func parsePackageRef(s string) (packageRef, error) {
 
 // refToPackage converts a packageRef to a packages.Package for adding to moonpackages.
 func refToPackage(ref packageRef) packages.Package {
-	switch ref.backend {
-	case "go":
-		meta := map[string]string{"link": ref.name}
-		if ref.version != "" {
-			meta["version"] = ref.version
-		}
-		return packages.Package{PackageManager: "go", Meta: meta}
-	default:
-		meta := map[string]string{"name": ref.name}
-		if ref.version != "" {
-			meta["version"] = ref.version
-		}
-		return packages.Package{PackageManager: ref.backend, Meta: meta}
+	meta := make(map[string]string)
+	meta["name"] = ref.name
+	if ref.version != "" {
+		meta["version"] = ref.version
 	}
+
+	switch ref.backend {
+	case "brew":
+		if strings.Count(ref.name, "/") == 2 {
+			lbi := strings.LastIndexByte(ref.name, '/')
+			meta["tap"] = ref.name[:lbi]
+			meta["name"] = ref.name[lbi+1:]
+		}
+	case "go":
+		meta["link"] = ref.name
+		delete(meta, "name")
+	}
+	return packages.Package{PackageManager: ref.backend, Meta: meta}
 }

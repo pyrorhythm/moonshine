@@ -29,7 +29,6 @@ func newAPIClient() *apiClient {
 	}
 }
 
-// APIFormulaInfo is the response shape of /api/formula/{name}.json.
 type APIFormulaInfo struct {
 	Name     string `json:"name"`
 	FullName string `json:"full_name"`
@@ -42,7 +41,6 @@ type APIFormulaInfo struct {
 	} `json:"versions"`
 }
 
-// APICaskInfo is the response shape of /api/cask/{token}.json.
 type APICaskInfo struct {
 	Token   string   `json:"token"`
 	Name    []string `json:"name"`
@@ -70,7 +68,6 @@ func (c *apiClient) get(ctx context.Context, rawURL string, dest any) error {
 	return json.NewDecoder(resp.Body).Decode(dest)
 }
 
-// FormulaInfo fetches metadata for a single formula by name.
 func (c *apiClient) FormulaInfo(ctx context.Context, name string) (*APIFormulaInfo, error) {
 	var info APIFormulaInfo
 	err := c.get(ctx, apiBase+"/formula/"+url.PathEscape(name)+".json", &info)
@@ -80,7 +77,6 @@ func (c *apiClient) FormulaInfo(ctx context.Context, name string) (*APIFormulaIn
 	return &info, nil
 }
 
-// CaskInfo fetches metadata for a single cask by token.
 func (c *apiClient) CaskInfo(ctx context.Context, token string) (*APICaskInfo, error) {
 	var info APICaskInfo
 	err := c.get(ctx, apiBase+"/cask/"+url.PathEscape(token)+".json", &info)
@@ -90,7 +86,6 @@ func (c *apiClient) CaskInfo(ctx context.Context, token string) (*APICaskInfo, e
 	return &info, nil
 }
 
-// PackageExists reports whether name is a known formula or cask.
 func (c *apiClient) PackageExists(ctx context.Context, name string) (bool, error) {
 	_, err := c.FormulaInfo(ctx, name)
 	if err == nil {
@@ -109,10 +104,12 @@ func (c *apiClient) PackageExists(ctx context.Context, name string) (bool, error
 	return false, err
 }
 
-// Search fetches the full formula + cask lists and returns all entries whose
-// name or token contains query (case-insensitive). Cask results are labelled
-// with " [cask]" in the description so the caller can distinguish them.
 func (c *apiClient) Search(ctx context.Context, query string) ([]backend.SearchResult, error) {
+	if strings.Count(query, "/") == 2 {
+		// is a tap, no need to search; if tap does not exist, will error on install
+		return []backend.SearchResult{{Name: query, Backend: "brew"}}, nil
+	}
+
 	q := strings.ToLower(query)
 
 	var formulas []APIFormulaInfo
@@ -121,7 +118,6 @@ func (c *apiClient) Search(ctx context.Context, query string) ([]backend.SearchR
 	}
 
 	var casks []APICaskInfo
-	// Non-fatal: cask search degrades gracefully.
 	_ = c.get(ctx, apiBase+"/cask.json", &casks)
 
 	var results []backend.SearchResult
@@ -138,12 +134,11 @@ func (c *apiClient) Search(ctx context.Context, query string) ([]backend.SearchR
 	}
 	for _, k := range casks {
 		if strings.Contains(strings.ToLower(k.Token), q) {
-			desc := k.Desc
-			if desc != "" {
-				desc += " [cask]"
-			} else {
-				desc = "[cask]"
+			desc := "[cask]"
+			if k.Desc != "" {
+				desc += k.Desc
 			}
+
 			results = append(results, backend.SearchResult{
 				Name:        k.Token,
 				Version:     k.Version,

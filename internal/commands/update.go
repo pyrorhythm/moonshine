@@ -18,7 +18,7 @@ func updateCommand() *cli.Command {
 		Usage:     "upgrade unpinned packages to latest",
 		ArgsUsage: "[[backend#]package]",
 		Action: func(ctx context.Context, c *cli.Command) error {
-			ac, err := loadContext(ctx, c)
+			ac, err := loadContext(c)
 			if err != nil {
 				return err
 			}
@@ -86,8 +86,8 @@ func doUpdate(
 			}
 			ac.lock.Upsert(backendName, lockfile.LockedPackage{
 				Name:        binaryName,
-				Version:     installed.Version,
-				Source:      installed.Source,
+				Version:     installed.GetVersion(),
+				Source:      installed.GetSource(),
 				InstalledAt: time.Now().UTC(),
 			})
 		}

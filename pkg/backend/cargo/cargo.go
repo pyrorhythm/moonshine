@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +15,18 @@ import (
 )
 
 var _ backend.Backend = (*Backend)(nil)
+
+// InstalledPackage is the cargo-specific installed package record.
+type InstalledPackage struct {
+	Name    string
+	Version string
+}
+
+func (p InstalledPackage) GetName() string    { return p.Name }
+func (p InstalledPackage) GetVersion() string { return p.Version }
+func (p InstalledPackage) GetSource() string  { return "crates.io" }
+
+var _ backend.InstalledPackage = InstalledPackage{}
 
 // Backend implements backend.Backend for Cargo global installs.
 type Backend struct {
@@ -73,26 +86,23 @@ func parseCargoSearch(data []byte) []backend.SearchResult {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Format: `name = "version"  # description`
 		if strings.HasPrefix(line, "... ") || line == "" {
 			continue
 		}
-		eqIdx := strings.Index(line, " = ")
-		if eqIdx < 0 {
+		name, rest, ok := strings.Cut(line, " = ")
+		if !ok {
 			continue
 		}
-		name := strings.TrimSpace(line[:eqIdx])
-		rest := line[eqIdx+3:]
+		name = strings.TrimSpace(name)
 		var version, desc string
 		if len(rest) > 2 && rest[0] == '"' {
-			closeQ := strings.Index(rest[1:], "\"")
-			if closeQ >= 0 {
-				version = rest[1 : closeQ+1]
-				rest = rest[closeQ+2:]
+			if end := strings.IndexByte(rest[1:], '"'); end >= 0 {
+				version = rest[1 : end+1]
+				rest = rest[end+2:]
 			}
 		}
-		if hashIdx := strings.Index(rest, "# "); hashIdx >= 0 {
-			desc = strings.TrimSpace(rest[hashIdx+2:])
+		if _, d, found := strings.Cut(rest, "# "); found {
+			desc = strings.TrimSpace(d)
 		}
 		results = append(results, backend.SearchResult{
 			Name:        name,
@@ -104,7 +114,6 @@ func parseCargoSearch(data []byte) []backend.SearchResult {
 	return results
 }
 
-// parseCargoList parses `cargo install --list` output.
 func parseCargoList(data []byte) []backend.InstalledPackage {
 	var pkgs []backend.InstalledPackage
 	scanner := bufio.NewScanner(bytes.NewReader(data))
@@ -117,20 +126,21 @@ func parseCargoList(data []byte) []backend.InstalledPackage {
 		if len(fields) < 2 {
 			continue
 		}
-		name := fields[0]
-		ver := strings.TrimPrefix(fields[1], "v")
-		pkgs = append(pkgs, backend.InstalledPackage{
-			Name:    name,
-			Version: ver,
-			Source:  "crates.io",
+		pkgs = append(pkgs, InstalledPackage{
+			Name:    fields[0],
+			Version: strings.TrimPrefix(fields[1], "v"),
 		})
 	}
 	return pkgs
 }
 
-func (b *Backend) run(ctx context.Context, args []string, capture bool) ([]byte, error) {
+func (b *Backend) run(
+	ctx context.Context,
+	args []string,
+	capture bool,
+) ([]byte, error) { //nolint:gosec
 	if b.cargoPath == "" {
-		return nil, fmt.Errorf("cargo not found on PATH")
+		return nil, errors.New("cargo not found on PATH")
 	}
 	var buf bytes.Buffer
 	cmd := exec.CommandContext(ctx, b.cargoPath, args...)

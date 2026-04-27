@@ -3,6 +3,7 @@ package brew
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,13 +15,13 @@ import (
 var ErrBrewNotFound = errors.New("brew not found: install Homebrew from https://brew.sh")
 
 // IRunner abstracts brew CLI subprocess calls for testability.
-// Only operations that mutate local state or read local-only state are here;
-// package metadata is fetched via apiClient instead.
 type IRunner interface {
-	ListInstalled(ctx context.Context) ([]ListEntry, error)
+	Leaves(ctx context.Context) ([]string, error)
+	InfoJSON(ctx context.Context, names []string) ([]InfoEntry, error)
 	Install(ctx context.Context, formula string, args ...string) error
 	Uninstall(ctx context.Context, formula string) error
 	Extract(ctx context.Context, pkg, version, tap string) error
+	TapAdd(ctx context.Context, name string) error
 	TapCreate(ctx context.Context, name string) error
 	TapExists(ctx context.Context, name string) (bool, error)
 	Upgrade(ctx context.Context, formula string) error
@@ -59,9 +60,11 @@ func NewRunner(verbose bool) (*Runner, error) {
 	}, nil
 }
 
-// run executes brew with args. When captureStdout is true the output is
-// returned as bytes; otherwise it is streamed to the terminal.
-func (r *Runner) run(ctx context.Context, args []string, captureStdout bool) ([]byte, error) {
+func (r *Runner) run(
+	ctx context.Context,
+	args []string,
+	captureStdout bool,
+) ([]byte, error) { //nolint:gosec
 	cmd := exec.CommandContext(ctx, r.brewPath, args...)
 	var outBuf bytes.Buffer
 	if captureStdout {
@@ -70,7 +73,6 @@ func (r *Runner) run(ctx context.Context, args []string, captureStdout bool) ([]
 		cmd.Stdout = r.stdout
 	}
 	cmd.Stderr = r.stderr
-
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
@@ -85,9 +87,38 @@ func (r *Runner) run(ctx context.Context, args []string, captureStdout bool) ([]
 	return outBuf.Bytes(), nil
 }
 
+func (r *Runner) Leaves(ctx context.Context) ([]string, error) {
+	out, err := r.run(ctx, []string{"leaves"}, true)
+	if err != nil {
+		return nil, err
+	}
+	return parseLeaves(out), nil
+}
+
+func (r *Runner) InfoJSON(ctx context.Context, names []string) ([]InfoEntry, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	args := append([]string{"info", "--json"}, names...)
+	out, err := r.run(ctx, args, true)
+	if err != nil {
+		return nil, err
+	}
+	var entries []InfoEntry
+	if err := json.Unmarshal(out, &entries); err != nil {
+		return nil, fmt.Errorf("parsing brew info output: %w", err)
+	}
+	return entries, nil
+}
+
+func (r *Runner) TapAdd(ctx context.Context, name string) error {
+	_, err := r.run(ctx, []string{"tap", name}, false)
+	return err
+}
+
 func (r *Runner) Extract(ctx context.Context, pkg, version, tap string) error {
 	if pkg == "" || version == "" || tap == "" {
-		return fmt.Errorf("extract: pkg, version, and tap must be non-empty")
+		return errors.New("extract: pkg, version, and tap must be non-empty")
 	}
 	_, err := r.run(ctx, []string{"extract", "--version=" + version, pkg, tap}, false)
 	return err
@@ -99,21 +130,11 @@ func (r *Runner) Install(ctx context.Context, formula string, args ...string) er
 	return err
 }
 
-// Upgrade upgrades an already-installed formula to the latest available version.
 func (r *Runner) Upgrade(ctx context.Context, formula string) error {
 	_, err := r.run(ctx, []string{"upgrade", formula}, false)
 	return err
 }
 
-func (r *Runner) ListInstalled(ctx context.Context) ([]ListEntry, error) {
-	out, err := r.run(ctx, []string{"list", "--versions"}, true)
-	if err != nil {
-		return nil, err
-	}
-	return parseListOutput(out), nil
-}
-
-// Uninstall removes the named formula.
 func (r *Runner) Uninstall(ctx context.Context, formula string) error {
 	_, err := r.run(ctx, []string{"uninstall", formula}, false)
 	return err

@@ -14,7 +14,7 @@ import (
 type ProgressMsg struct {
 	Action reconciler.PackageAction
 	Err    error
-	Done   bool // true = all done
+	Done   bool
 }
 
 type applyRow struct {
@@ -29,7 +29,6 @@ type ApplyModel struct {
 	rows     []applyRow
 	current  int
 	quitting bool
-	err      error
 }
 
 // NewApplyModel creates an ApplyModel for the given actions.
@@ -84,7 +83,7 @@ func (m ApplyModel) View() string {
 	for i, row := range m.rows {
 		a := row.action
 		name := pkgName(a)
-		prefix := ""
+		var prefix string
 
 		switch {
 		case row.done && row.err == nil:
@@ -118,7 +117,7 @@ func pkgName(a reconciler.PackageAction) string {
 		}
 	}
 	if a.Current != nil {
-		return a.Current.Name
+		return a.Current.GetName()
 	}
 	return "?"
 }
