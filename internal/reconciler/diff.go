@@ -45,6 +45,19 @@ type PackageAction struct {
 	Reason      string
 }
 
+// DisplayName returns the best available name for display purposes.
+func (a PackageAction) DisplayName() string {
+	if a.Package.Meta != nil {
+		if n := a.Package.Name(); n != "" {
+			return n
+		}
+	}
+	if a.Current != nil {
+		return a.Current.GetName()
+	}
+	return "?"
+}
+
 // DiffResult is the full computed plan for all backends.
 type DiffResult struct {
 	Actions []PackageAction

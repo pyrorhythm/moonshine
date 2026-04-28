@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
 // ErrBrewNotFound is returned when the brew binary cannot be located.
@@ -82,10 +84,13 @@ func (r *Runner) run(
 	var outBuf bytes.Buffer
 	if captureStdout {
 		cmd.Stdout = &outBuf
+	} else if out, ok := backend.OutputFrom(ctx); ok {
+		cmd.Stdout = out
+		cmd.Stderr = out
 	} else {
 		cmd.Stdout = r.stdout
+		cmd.Stderr = r.stderr
 	}
-	cmd.Stderr = r.stderr
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {

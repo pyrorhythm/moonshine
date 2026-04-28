@@ -1,9 +1,11 @@
 package reconciler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,12 +15,52 @@ import (
 	"pyrorhythm.dev/moonshine/pkg/backend"
 )
 
+// ProgressReporter receives live events during Apply.
+// All methods must be safe for concurrent calls.
+type ProgressReporter interface {
+	OnStart(pkg string)
+	OnLog(pkg, line string)
+	OnDone(pkg string, err error)
+	OnAllDone()
+}
+
 // ApplyOptions configures the Apply call.
 type ApplyOptions struct {
-	DryRun  bool
-	Verbose bool
-	Hooks   hooks.Hooks
-	Mode    string
+	DryRun   bool
+	Verbose  bool
+	Hooks    hooks.Hooks
+	Mode     string
+	Progress ProgressReporter // nil = no live progress reporting
+}
+
+// progressWriter buffers subprocess output and forwards complete lines to a ProgressReporter.
+type progressWriter struct {
+	pkg string
+	r   ProgressReporter
+	buf []byte
+}
+
+func (w *progressWriter) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	for {
+		idx := bytes.IndexByte(w.buf, '\n')
+		if idx < 0 {
+			break
+		}
+		line := strings.TrimRight(string(w.buf[:idx]), "\r")
+		if line != "" {
+			w.r.OnLog(w.pkg, line)
+		}
+		w.buf = w.buf[idx+1:]
+	}
+	return len(p), nil
+}
+
+func (w *progressWriter) flush() {
+	if line := strings.TrimRight(string(w.buf), "\r\n"); line != "" {
+		w.r.OnLog(w.pkg, line)
+	}
+	w.buf = nil
 }
 
 // Apply executes the reconciliation plan, calling the appropriate backend for each action.
@@ -30,6 +72,9 @@ func Apply(
 	lf *lockfile.LockFile,
 	opts ApplyOptions,
 ) error {
+	if opts.Progress != nil {
+		defer opts.Progress.OnAllDone()
+	}
 	if err := hooks.Run(ctx, opts.Hooks.PreApply, hooks.Env{Action: "apply", Mode: opts.Mode}); err != nil {
 		return fmt.Errorf("pre_apply hook: %w", err)
 	}
@@ -99,10 +144,21 @@ func runInstall(
 	lf *lockfile.LockFile,
 	opts ApplyOptions,
 	mu *sync.Mutex,
-) error {
+) (retErr error) {
 	b, ok := reg.Get(action.BackendName)
 	if !ok {
 		return fmt.Errorf("backend %q not registered", action.BackendName)
+	}
+
+	name := action.DisplayName()
+	if opts.Progress != nil {
+		opts.Progress.OnStart(name)
+		pw := &progressWriter{pkg: name, r: opts.Progress}
+		ctx = backend.WithOutput(ctx, pw)
+		defer func() {
+			pw.flush()
+			opts.Progress.OnDone(name, retErr)
+		}()
 	}
 
 	env := actionEnv(action, opts)
@@ -136,10 +192,21 @@ func runUninstall(
 	reg *registry.Registry,
 	lf *lockfile.LockFile,
 	opts ApplyOptions,
-) error {
+) (retErr error) {
 	b, ok := reg.Get(action.BackendName)
 	if !ok {
 		return fmt.Errorf("backend %q not registered", action.BackendName)
+	}
+
+	name := action.DisplayName()
+	if opts.Progress != nil {
+		opts.Progress.OnStart(name)
+		pw := &progressWriter{pkg: name, r: opts.Progress}
+		ctx = backend.WithOutput(ctx, pw)
+		defer func() {
+			pw.flush()
+			opts.Progress.OnDone(name, retErr)
+		}()
 	}
 
 	env := actionEnv(action, opts)

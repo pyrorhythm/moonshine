@@ -42,7 +42,7 @@ func doctorCommand() *cli.Command {
 						if a.Kind != reconciler.ActionNone {
 							ui.Warn(fmt.Sprintf(
 								"  %s %s/%s: %s",
-								a.Kind, a.BackendName, actionPkgName(a), a.Reason,
+								a.Kind, a.BackendName, a.DisplayName(), a.Reason,
 							))
 						}
 					}
@@ -67,14 +67,3 @@ func doctorCommand() *cli.Command {
 	}
 }
 
-func actionPkgName(a reconciler.PackageAction) string {
-	if a.Package.Meta != nil {
-		if n := a.Package.Name(); n != "" {
-			return n
-		}
-	}
-	if a.Current != nil {
-		return a.Current.GetName()
-	}
-	return "?"
-}

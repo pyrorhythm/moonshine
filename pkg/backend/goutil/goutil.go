@@ -100,8 +100,13 @@ func (b *Backend) run(ctx context.Context, args []string) error { //nolint:gosec
 	}
 	cmd := exec.CommandContext(ctx, b.goPath, args...)
 	cmd.Env = runenv.Get()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if out, ok := backend.OutputFrom(ctx); ok {
+		cmd.Stdout = out
+		cmd.Stderr = out
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("go %v: %w", args, err)
 	}

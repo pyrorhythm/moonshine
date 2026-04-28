@@ -123,8 +123,13 @@ func (s *Backend) run(ctx context.Context, toRun string, pkg backend.Package) er
 		shell = "sh"
 	}
 	execCmd := exec.CommandContext(ctx, shell, "-c", buf.String()) //nolint:gosec
-	execCmd.Stdout = os.Stdout
-	execCmd.Stderr = os.Stderr
+	if out, ok := backend.OutputFrom(ctx); ok {
+		execCmd.Stdout = out
+		execCmd.Stderr = out
+	} else {
+		execCmd.Stdout = os.Stdout
+		execCmd.Stderr = os.Stderr
+	}
 	if err = execCmd.Run(); err != nil {
 		return fmt.Errorf("backend %q: %w", s.config.Name, err)
 	}

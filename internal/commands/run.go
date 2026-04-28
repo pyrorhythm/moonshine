@@ -31,6 +31,7 @@ func Commands() []*cli.Command {
 		applyCommand(),
 		diffCommand(),
 		statusCommand(),
+		listCommand(),
 		addCommand(),
 		searchCommand(),
 		removeCommand(),

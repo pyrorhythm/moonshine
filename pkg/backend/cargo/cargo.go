@@ -147,10 +147,13 @@ func (b *Backend) run(
 	cmd.Env = runenv.Get()
 	if capture {
 		cmd.Stdout = &buf
+	} else if out, ok := backend.OutputFrom(ctx); ok {
+		cmd.Stdout = out
+		cmd.Stderr = out
 	} else {
 		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
-	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("cargo %v: %w", args, err)
 	}

@@ -13,6 +13,15 @@ import (
 	"pyrorhythm.dev/moonshine/internal/ui"
 )
 
+// computePlan takes a system snapshot and diffs it against the moonfile.
+func computePlan(ctx context.Context, ac *appContext) (reconciler.DiffResult, error) {
+	ss, err := state.Snapshot(ctx, ac.registry)
+	if err != nil {
+		return reconciler.DiffResult{}, fmt.Errorf("snapshot: %w", err)
+	}
+	return reconciler.Diff(ac.moonfile, ss, ac.lock), nil
+}
+
 func applyAC(ctx context.Context, ac *appContext) error {
 	ss, err := state.Snapshot(ctx, ac.registry)
 	if err != nil {
@@ -39,8 +48,13 @@ func applyAC(ctx context.Context, ac *appContext) error {
 		Hooks:   ac.moonfile.Hooks,
 		Mode:    string(ac.moonfile.Mode),
 	}
-	if err := reconciler.Apply(ctx, plan, ac.registry, ac.lock, opts); err != nil {
-		return err
+
+	applyErr := ui.RunApply(plan.Actions, func(pr reconciler.ProgressReporter) error {
+		opts.Progress = pr
+		return reconciler.Apply(ctx, plan, ac.registry, ac.lock, opts)
+	})
+	if applyErr != nil {
+		return applyErr
 	}
 
 	if err := lockfile.Save(ac.lockPath, ac.lock); err != nil {
