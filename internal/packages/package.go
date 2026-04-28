@@ -20,7 +20,10 @@ func (p Package) BinaryName() string {
 	case "brew":
 		name := p.Meta["name"]
 		if bv := p.Meta["brew_version"]; bv != "" {
-			return name + "@" + bv
+			name = name + "@" + bv
+		}
+		if tap := p.Meta["tap"]; tap != "" {
+			return tap + "/" + name
 		}
 		return name
 	case "go":

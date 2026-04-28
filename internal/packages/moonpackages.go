@@ -8,7 +8,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-type moonpackagesYAML struct {
+type packagesYAML struct {
 	Brew  []brewPkgYAML  `yaml:"brew,omitempty"`
 	Go    []goPkgYAML    `yaml:"go,omitempty"`
 	Cargo []cargoPkgYAML `yaml:"cargo,omitempty"`
@@ -203,8 +203,8 @@ func (n npmPkgYAML) toPackage() Package {
 	return Package{PackageManager: "npm", Meta: meta}
 }
 
-// LoadMoonpackages reads packages.yml (or moonpackages.yml). Returns empty list if the file does not exist.
-func LoadMoonpackages(path string) (List, error) {
+// LoadPackages reads packages.yml. Returns empty list if the file does not exist.
+func LoadPackages(path string) (List, error) {
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return List{}, nil
@@ -212,7 +212,7 @@ func LoadMoonpackages(path string) (List, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading packages file: %w", err)
 	}
-	var raw moonpackagesYAML
+	var raw packagesYAML
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return nil, fmt.Errorf("parsing packages file: %w", err)
 	}
@@ -232,9 +232,9 @@ func LoadMoonpackages(path string) (List, error) {
 	return list, nil
 }
 
-// SaveMoonpackages writes list to path atomically.
-func SaveMoonpackages(path string, list List) error {
-	var raw moonpackagesYAML
+// SavePackages writes list to path atomically.
+func SavePackages(path string, list List) error {
+	var raw packagesYAML
 	for _, pkg := range list {
 		switch pkg.PackageManager {
 		case "brew":
@@ -269,7 +269,7 @@ func SaveMoonpackages(path string, list List) error {
 	if err != nil {
 		return fmt.Errorf("marshalling packages file: %w", err)
 	}
-	tmp, err := os.CreateTemp("", "moonpackages-*.yml")
+	tmp, err := os.CreateTemp("", "packages-*.yml")
 	if err != nil {
 		return err
 	}

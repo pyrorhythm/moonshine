@@ -45,20 +45,6 @@ func TestLoadMoonfile_valid(t *testing.T) {
 	}
 }
 
-func TestLoadMoonfile_legacyFilenames(t *testing.T) {
-	dir := t.TempDir()
-	configPath := filepath.Join(dir, "config.yml")
-	writeTmpFile(t, dir, "moonconfig.yml", validConfigYAML)
-	writeTmpFile(t, dir, "moonpackages.yml", validPackagesYAML)
-
-	mf, err := config.LoadBundle(configPath)
-	if err != nil {
-		t.Fatalf("unexpected error loading legacy filenames: %v", err)
-	}
-	if len(mf.Packages) != 2 {
-		t.Errorf("packages = %d, want 2", len(mf.Packages))
-	}
-}
 
 func TestLoadMoonfile_defaults(t *testing.T) {
 	dir := t.TempDir()

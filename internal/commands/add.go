@@ -14,7 +14,7 @@ import (
 func addCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "add",
-		Usage:     "search, install, and add a package to moonpackages",
+		Usage:     "search, install, and add a package to packages.yml",
 		ArgsUsage: "[backend#]package[@version]",
 		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
@@ -36,7 +36,7 @@ func addCommand() *cli.Command {
 			for _, p := range ac.moonfile.Packages {
 				if p.PackageManager == ref.backend && p.BinaryName() == ref.name {
 					return fmt.Errorf(
-						"package %q already in moonpackages under %s",
+						"package %q already in packages.yml under %s",
 						ref.name,
 						ref.backend,
 					)
@@ -123,7 +123,7 @@ func searchBackend(
 	return false
 }
 
-// installAndAdd installs pkg via b then appends it to moonpackages.yml.
+// installAndAdd installs pkg via b then appends it to packages.yml.
 func installAndAdd(
 	ctx context.Context,
 	ac *appContext,
@@ -140,8 +140,8 @@ func installAndAdd(
 
 	ac.moonfile.Packages = append(ac.moonfile.Packages, pkg)
 	if err := config.SavePackages(ac.configPath, ac.moonfile.Packages); err != nil {
-		return fmt.Errorf("saving moonpackages.yml: %w", err)
+		return fmt.Errorf("saving packages.yml: %w", err)
 	}
-	ui.Success(fmt.Sprintf("added %s/%s to moonpackages.yml", ref.backend, ref.name))
+	ui.Success(fmt.Sprintf("added %s/%s to packages.yml", ref.backend, ref.name))
 	return nil
 }

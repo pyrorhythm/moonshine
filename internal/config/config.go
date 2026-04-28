@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/goccy/go-yaml"
@@ -48,14 +47,9 @@ func (m *Moonshine) validate() error {
 	return nil
 }
 
-// Load reads and parses a config file at path, falling back to the legacy name if needed.
+// Load reads and parses a config file at path.
 func Load(path string) (*Moonshine, error) {
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		if alt := altConfigPath(path); alt != "" {
-			data, err = os.ReadFile(alt)
-		}
-	}
 	if err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
@@ -70,25 +64,13 @@ func Load(path string) (*Moonshine, error) {
 	return &m, nil
 }
 
-// altConfigPath returns the legacy/alternate config filename for path, or "".
-func altConfigPath(path string) string {
-	dir, base := filepath.Dir(path), filepath.Base(path)
-	switch base {
-	case "config.yml":
-		return filepath.Join(dir, "moonconfig.yml")
-	case "moonconfig.yml":
-		return filepath.Join(dir, "config.yml")
-	}
-	return ""
-}
-
 // Save writes the config to path atomically.
 func Save(path string, m *Moonshine) error {
 	data, err := yaml.Marshal(m)
 	if err != nil {
 		return fmt.Errorf("marshalling config: %w", err)
 	}
-	tmp, err := os.CreateTemp("", "moonconfig-*.yaml")
+	tmp, err := os.CreateTemp("", "config-*.yaml")
 	if err != nil {
 		return err
 	}

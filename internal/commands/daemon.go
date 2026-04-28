@@ -24,7 +24,7 @@ var runDaemon = &cli.Command{
 			return err
 		}
 		if !ac.moonfile.Daemon.Enabled {
-			ui.Warn("daemon.enabled is false in moonconfig; starting anyway")
+			ui.Warn("daemon.enabled is false in config.yml; starting anyway")
 		}
 		interval := ac.moonfile.Daemon.CheckInterval
 		if interval == 0 {

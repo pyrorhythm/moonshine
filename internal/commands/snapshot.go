@@ -57,7 +57,7 @@ func snapshotCommand() *cli.Command {
 
 			if c.Bool("overwrite-config") {
 				if err := config.SaveConfig(output, mf); err != nil {
-					return fmt.Errorf("writing moonconfig: %w", err)
+					return fmt.Errorf("writing config: %w", err)
 				}
 
 				ui.Success(
@@ -75,7 +75,7 @@ func snapshotCommand() *cli.Command {
 
 			ui.Success(
 				fmt.Sprintf(
-					"snapshot written to moonpackages.yml and %s",
+					"snapshot written to packages.yml and %s",
 					filepath.Base(lockPath),
 				),
 			)

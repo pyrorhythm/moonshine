@@ -19,7 +19,7 @@ type recordingRunner struct {
 }
 
 func (r *recordingRunner) Leaves(context.Context) ([]string, error) { return nil, nil }
-func (r *recordingRunner) InfoJSON(context.Context, []string) ([]brew.InfoEntry, error) {
+func (r *recordingRunner) InfoJSON(context.Context, []string) ([]brew.FormulaInfo, error) {
 	return nil, nil
 }
 

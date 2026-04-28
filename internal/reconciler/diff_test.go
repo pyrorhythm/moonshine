@@ -121,6 +121,18 @@ func TestDiff_noUninstallCompanion(t *testing.T) {
 	}
 }
 
+func TestDiff_tappedPackageAlreadyInstalled(t *testing.T) {
+	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("sketchybar", "tap", "felixkratz/formulae")})
+	// brew leaves outputs FQNs for tapped packages
+	ss := makeState(backend.SimplePackage{Name: "felixkratz/formulae/sketchybar", Version: "2.23.0"})
+	lf := lockfile.New(string(mode.Standalone))
+
+	result := reconciler.Diff(mf, ss, lf)
+	if result.HasChanges() {
+		t.Error("expected no changes for already-installed tapped package")
+	}
+}
+
 func TestDiff_noUninstallNotOurs(t *testing.T) {
 	mf := makeMoonfile(mode.Standalone, packages.List{brewPkg("ripgrep")})
 	ss := makeState(

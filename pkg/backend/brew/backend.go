@@ -44,25 +44,29 @@ func (b *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage
 	if len(names) == 0 {
 		return nil, nil
 	}
+
 	infos, err := b.runner.InfoJSON(ctx, names)
 	if err != nil {
 		pkgs := make([]backend.InstalledPackage, len(names))
 		for i, name := range names {
-			pkgs[i] = InstalledPackage{Name: name}
+			pkgs[i] = fromLeavesName(name)
 		}
 		return pkgs, nil
 	}
-	byName := make(map[string]InfoEntry, len(infos))
+
+	byName := make(map[string]FormulaInfo, len(infos))
 	for _, info := range infos {
 		byName[info.FullName] = info
-		byName[info.Name] = info // fallback
+		byName[info.Name] = info
 	}
+
 	pkgs := make([]backend.InstalledPackage, 0, len(names))
 	for _, name := range names {
-		pkg := InstalledPackage{Name: name}
+		pkg := fromLeavesName(name)
 		if info, ok := byName[name]; ok {
-			pkg.Description = info.Desc
+			pkg.Name = info.Name
 			pkg.Tap = info.Tap
+			pkg.Description = info.Desc
 			if len(info.Installed) > 0 {
 				pkg.Version = info.Installed[0].Version
 			}
@@ -73,7 +77,7 @@ func (b *Backend) ListInstalled(ctx context.Context) ([]backend.InstalledPackage
 }
 
 func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
-	formula, err := b.resolveFormula(ctx, pkg)
+	formula, err := b.resolveFormula(ctx, fromBackend(pkg))
 	if err != nil {
 		return err
 	}
@@ -81,48 +85,28 @@ func (b *Backend) Install(ctx context.Context, pkg backend.Package) error {
 }
 
 func (b *Backend) Uninstall(ctx context.Context, pkg backend.Package) error {
-	return b.runner.Uninstall(ctx, formulaRef(pkg))
+	return b.runner.Uninstall(ctx, fromBackend(pkg).FormulaRef())
 }
 
 func (b *Backend) Upgrade(ctx context.Context, pkg backend.Package) error {
-	return b.runner.Upgrade(ctx, formulaRef(pkg))
+	return b.runner.Upgrade(ctx, fromBackend(pkg).FormulaRef())
 }
 
-// Search queries formulae.brew.sh for packages matching query.
 func (b *Backend) Search(ctx context.Context, query string) ([]backend.SearchResult, error) {
 	return b.api.Search(ctx, query)
 }
 
-func formulaBase(pkg backend.Package) string {
-	name := pkg.Get("name")
-	if bv := pkg.Get("brew_version"); bv != "" {
-		return name + "@" + bv
+// resolveFormula determines the exact formula string to pass to brew install.
+// For tapped formulae it ensures the tap is registered. For version-pinned core
+// formulae it checks for a versioned formula and falls back to brew extract.
+func (b *Backend) resolveFormula(ctx context.Context, pkg Package) (string, error) {
+	if pkg.Tap != "" {
+		return b.resolveTap(ctx, pkg)
 	}
-	return name
-}
-
-func formulaRef(pkg backend.Package) string {
-	base := formulaBase(pkg)
-	if tap := pkg.Get("tap"); tap != "" {
-		return tap + "/" + base
+	if pkg.Version == "" {
+		return pkg.FormulaRef(), nil
 	}
-	return base
-}
-
-func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (string, error) {
-	base := formulaBase(pkg)
-	version := pkg.Get("version")
-	tap := pkg.Get("tap")
-
-	if tap != "" {
-		return b.resolveTap(ctx, tap, version, base)
-	}
-
-	if version == "" {
-		return base, nil
-	}
-
-	candidate := base + "@" + version
+	candidate := pkg.FormulaRef() + "@" + pkg.Version
 	exists, err := b.api.PackageExists(ctx, candidate)
 	if err != nil && !errors.Is(err, errNotFound) {
 		exists = false
@@ -130,34 +114,29 @@ func (b *Backend) resolveFormula(ctx context.Context, pkg backend.Package) (stri
 	if exists {
 		return candidate, nil
 	}
-
 	if err := b.runner.TapCreate(ctx, b.localTap); err != nil {
 		return "", fmt.Errorf("creating local tap %q: %w", b.localTap, err)
 	}
-	if err := b.runner.Extract(ctx, base, version, b.localTap); err != nil {
-		return "", fmt.Errorf("extracting %s@%s: %w", base, version, err)
+	if err := b.runner.Extract(ctx, pkg.Name, pkg.Version, b.localTap); err != nil {
+		return "", fmt.Errorf("extracting %s@%s: %w", pkg.Name, pkg.Version, err)
 	}
 	return b.localTap + "/" + candidate, nil
 }
 
-func (b *Backend) resolveTap(
-	ctx context.Context,
-	tap string,
-	version string,
-	base string,
-) (string, error) {
-	exists, err := b.runner.TapExists(ctx, tap)
+// resolveTap ensures the tap is registered then returns the formula ref.
+func (b *Backend) resolveTap(ctx context.Context, pkg Package) (string, error) {
+	exists, err := b.runner.TapExists(ctx, pkg.Tap)
 	if err != nil {
-		return "", fmt.Errorf("checking tap %q: %w", tap, err)
+		return "", fmt.Errorf("checking tap %q: %w", pkg.Tap, err)
 	}
 	if !exists {
-		if err := b.runner.TapAdd(ctx, tap); err != nil {
-			return "", fmt.Errorf("adding tap %q: %w", tap, err)
+		if err := b.runner.TapAdd(ctx, pkg.Tap); err != nil {
+			return "", fmt.Errorf("adding tap %q: %w", pkg.Tap, err)
 		}
 	}
-
-	if version != "" {
-		return tap + "/" + base + "@" + version, nil
+	ref := pkg.FormulaRef()
+	if pkg.Version != "" {
+		ref += "@" + pkg.Version
 	}
-	return tap + "/" + base, nil
+	return ref, nil
 }

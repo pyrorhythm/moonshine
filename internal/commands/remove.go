@@ -14,7 +14,7 @@ func removeCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "remove",
 		Aliases:   []string{"rm"},
-		Usage:     "remove a package from moonpackages and uninstall",
+		Usage:     "remove a package from packages.yml and uninstall",
 		ArgsUsage: "[backend#]package",
 		Action: func(ctx context.Context, c *cli.Command) error {
 			if c.NArg() == 0 {
@@ -44,7 +44,7 @@ func removeCommand() *cli.Command {
 			}
 			if !found {
 				return fmt.Errorf(
-					"package %q not found in moonpackages.yml under %s",
+					"package %q not found in packages.yml under %s",
 					ref.name,
 					ref.backend,
 				)
@@ -52,9 +52,9 @@ func removeCommand() *cli.Command {
 
 			ac.moonfile.Packages = updated
 			if err := config.SavePackages(ac.configPath, ac.moonfile.Packages); err != nil {
-				return fmt.Errorf("saving moonpackages.yml: %w", err)
+				return fmt.Errorf("saving packages.yml: %w", err)
 			}
-			ui.Info(fmt.Sprintf("removed %s/%s from moonpackages.yml", ref.backend, ref.name))
+			ui.Info(fmt.Sprintf("removed %s/%s from packages.yml", ref.backend, ref.name))
 
 			return applyAC(ctx, ac)
 		},

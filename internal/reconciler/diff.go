@@ -1,6 +1,8 @@
 package reconciler
 
 import (
+	"log/slog"
+
 	"pyrorhythm.dev/moonshine/internal/config"
 	"pyrorhythm.dev/moonshine/internal/config/mode"
 	"pyrorhythm.dev/moonshine/internal/lockfile"
@@ -89,6 +91,8 @@ func Diff(mf *config.Moonfile, current state.SystemState, lf *lockfile.LockFile)
 
 			installed, found := current.Get(backendName, binaryName)
 			if !found {
+				slog.Info("not found", "bpkg", bpkg, "binaryName", binaryName)
+
 				actions = append(actions, PackageAction{
 					Kind:        ActionInstall,
 					BackendName: backendName,

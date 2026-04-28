@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"pyrorhythm.dev/moonshine/internal/registry"
 	"pyrorhythm.dev/moonshine/pkg/backend"
@@ -42,5 +43,8 @@ func (ss SystemState) Get(backendName, name string) (backend.InstalledPackage, b
 		return nil, false
 	}
 	pkg, ok := pm[name]
+	if !ok {
+		slog.Info("not found", "name", name, "pm", pm)
+	}
 	return pkg, ok
 }
