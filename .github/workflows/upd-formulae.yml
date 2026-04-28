@@ -1,111 +1,113 @@
 name: update-formulae
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: release tag to publish to homebrew, for example v0.1.0
-        required: true
-        type: string
+    workflow_dispatch:
+        inputs:
+            version:
+                description: release tag to publish to homebrew, for example v0.1.0
+                required: true
+                type: string
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  update-formulae:
-    runs-on: ubuntu-latest
-    environment: release
-    steps:
-      - name: download release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
+    update-formulae:
+        runs-on: ubuntu-latest
+        environment: release
+        steps:
+            - name: download release assets
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  VERSION: ${{ inputs.version }}
+              run: |
+                  set -euo pipefail
 
-          mkdir -p dist
+                  mkdir -p dist
 
-          gh release download "${VERSION}" \
-            --repo "${REPO}" \
-            --dir dist \
-            --pattern 'moonshine_*_macOS_*.tar.gz'
+                  gh release download "${VERSION}" \
+                    --repo "${REPO}" \
+                    --dir dist \
+                    --pattern 'moonshine_*_macOS_*.tar.gz'
 
-      - name: check out tap repository
-        uses: actions/checkout@v4
-        with:
-          repository: pyrorhythm/homebrew-tap
-          path: homebrew-tap
-          token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+            - name: check out tap repository
+              uses: actions/checkout@v4
+              with:
+                  repository: pyrorhythm/homebrew-tap
+                  path: homebrew-tap
+                  token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
-      - name: update homebrew formulae
-        env:
-          VERSION: ${{ inputs.version }}
-          REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
+            - name: update homebrew formulae
+              env:
+                  VERSION: ${{ inputs.version }}
+                  REPO: ${{ github.repository }}
+              run: |
+                  set -euo pipefail
 
-          mkdir -p homebrew-tap/Formula
+                  mkdir -p homebrew-tap/Formula
 
-          ARM_ASSET="moonshine_${VERSION#v}_macOS_arm64.tar.gz"
-          INTEL_ASSET="moonshine_${VERSION#v}_macOS_x86_64.tar.gz"
+                  ARM_ASSET="moonshine_${VERSION#v}_macOS_arm64.tar.gz"
+                  INTEL_ASSET="moonshine_${VERSION#v}_macOS_x86_64.tar.gz"
 
-          ARM_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARM_ASSET}"
-          INTEL_URL="https://github.com/${REPO}/releases/download/${VERSION}/${INTEL_ASSET}"
+                  ARM_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARM_ASSET}"
+                  INTEL_URL="https://github.com/${REPO}/releases/download/${VERSION}/${INTEL_ASSET}"
 
-          ARM_SHA256="$(sha256sum "dist/${ARM_ASSET}" | awk '{print $1}')"
-          INTEL_SHA256="$(sha256sum "dist/${INTEL_ASSET}" | awk '{print $1}')"
+                  ARM_SHA256="$(sha256sum "dist/${ARM_ASSET}" | awk '{print $1}')"
+                  INTEL_SHA256="$(sha256sum "dist/${INTEL_ASSET}" | awk '{print $1}')"
 
-          cat > homebrew-tap/Formula/moonshine.rb <<EOF
-          class Moonshine < Formula
-            desc "Missing declarative package manager aggregator for macOS"
-            homepage "https://pyrorhythm.dev/moonshine"
-            license "MIT"
+                  cat > homebrew-tap/Formula/moonshine.rb <<EOF
+                  class Moonshine < Formula
+                    desc "Missing declarative package manager aggregator for macOS"
+                    homepage "https://pyrorhythm.dev/moonshine"
+                    license "MIT"
+                    version "${VERSION}"
+                    version_schema 1
+                    
+                    on_arm do
+                      url "${ARM_URL}"
+                      sha256 "${ARM_SHA256}"
+                    end
 
-            on_arm do
-              url "${ARM_URL}"
-              sha256 "${ARM_SHA256}"
-            end
+                    on_intel do
+                      url "${INTEL_URL}"
+                      sha256 "${INTEL_SHA256}"
+                    end
 
-            on_intel do
-              url "${INTEL_URL}"
-              sha256 "${INTEL_SHA256}"
-            end
+                    def install
+                      bin.install "moonshine"
+                      bin.install_symlink bin/"moonshine" => "moon"
 
-            def install
-              bin.install "moonshine"
-              bin.install_symlink bin/"moonshine" => "moon"
+                      generate_completions_from_executable(
+                        bin/"moonshine",
+                        "completion",
+                        shells: [:bash, :zsh, :fish]
+                      )
+                    end
 
-              generate_completions_from_executable(
-                bin/"moonshine",
-                "completion",
-                shells: [:bash, :zsh, :fish, :pwsh]
-              )
-            end
+                    test do
+                      assert_match version.to_s, shell_output("#{bin}/moonshine --version")
+                    end
+                  end
+                  EOF
 
-            test do
-              assert_match version.to_s, shell_output("#{bin}/moonshine version")
-            end
-          end
-          EOF
+            - name: commit-push formulae
+              env:
+                  GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+                  VERSION: ${{ inputs.version }}
+              run: |
+                  set -euo pipefail
 
-      - name: commit-push formulae
-        env:
-          GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          set -euo pipefail
+                  cd homebrew-tap
+                  git config user.name "pyrorhythm[bot]"
+                  git config user.email "bot@pyrorhythm.dev"
 
-          cd homebrew-tap
-          git config user.name "pyrorhythm[bot]"
-          git config user.email "bot@pyrorhythm.dev"
+                  git add Formula/moonshine.rb
 
-          git add Formula/moonshine.rb
+                  if git diff --cached --quiet; then
+                    echo "no formula changes to commit"
+                    exit 0
+                  fi
 
-          if git diff --cached --quiet; then
-            echo "no formula changes to commit"
-            exit 0
-          fi
-
-          git commit -m "ci: update moonshine formulae to ${VERSION}"
-          git push https://x-access-token:${GITHUB_TOKEN}@github.com/pyrorhythm/homebrew-tap.git HEAD:main
+                  git commit -m "ci: update moonshine formulae to ${VERSION}"
+                  git push https://x-access-token:${GITHUB_TOKEN}@github.com/pyrorhythm/homebrew-tap.git HEAD:main
